@@ -4,16 +4,16 @@ using codecrafters_redis.src.Helpers;
 
 public static class PingCommand
 {
-  public static string Process(RespValue value)
+  public static string Process(List<RespValue> args)
   {
-    if (value.ArrayValue.Count == 1)
+    if (args.Count == 1)
     {
       return "+PONG\r\n";
     }
 
-    if (value.ArrayValue.Count == 2)
+    if (args.Count == 2)
     {
-      string? payload = CommandHepler.ReadBulkOrSimple(value.ArrayValue[1]);
+      string? payload = CommandHepler.ReadBulkOrSimple(args[1]);
       return payload == null ? "$-1\r\n" : CommandHepler.FormatBulk(payload);
     }
 

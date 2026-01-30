@@ -12,7 +12,8 @@ static class RespExecutor
       return CommandHepler.BuildError("expected array command");
     }
 
-    string command = ReadCommandName(value.ArrayValue[0]);
+    List<RespValue> args = value.ArrayValue;
+    string command = ReadCommandName(args[0]);
 
     if (string.IsNullOrEmpty(command))
     {
@@ -23,22 +24,22 @@ static class RespExecutor
 
     if (command == "PING")
     {
-      return PingCommand.Process(value);
+      return PingCommand.Process(args);
     }
 
     if (command == "ECHO")
     {
-      return EchoCommand.Process(value);
+      return EchoCommand.Process(args);
     }
 
     if (command == "SET")
     {
-      return SetCommand.Process(value);
+      return SetCommand.Process(args);
     }
 
     if (command == "GET")
     {
-      return GetCommand.Process(value);
+      return GetCommand.Process(args);
     }
 
     return CommandHepler.BuildError("unknown command'");

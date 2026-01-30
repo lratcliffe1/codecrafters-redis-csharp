@@ -4,14 +4,14 @@ using codecrafters_redis.src.Helpers;
 
 public static class GetCommand
 {
-  public static string Process(RespValue value)
+  public static string Process(List<RespValue> args)
   {
-    if (value.ArrayValue.Count != 2)
+    if (args.Count != 2)
     {
       return CommandHepler.BuildError("wrong number of arguments for 'get'");
     }
 
-    string? key = CommandHepler.ReadBulkOrSimple(value.ArrayValue[1]);
+    string? key = CommandHepler.ReadBulkOrSimple(args[1]);
 
     if (string.IsNullOrEmpty(key))
     {
