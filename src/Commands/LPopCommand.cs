@@ -7,7 +7,12 @@ public static class LPopCommand
 {
   public static string Process(List<RespValue> args)
   {
-    if (args.Count != 2)
+    if (args.Count == 2)
+    {
+      args.Add(RespValue.Simple("1"));
+    }
+
+    if (args.Count != 3)
     {
       return CommandHepler.BuildError("wrong number of arguments for 'lpop'");
     }
@@ -19,8 +24,23 @@ public static class LPopCommand
       return CommandHepler.BuildError("invalid key for 'lpop'");
     }
 
-    string? removed = Cache.LPop(key);
+    string? popCountRaw = CommandHepler.ReadBulkOrSimple(args[2]);
+    if (!int.TryParse(popCountRaw, out int popCount))
+    {
+      return CommandHepler.BuildError("invalid expiration for 'set'");
+    }
 
-    return removed == null ? "$-1\r\n" : CommandHepler.FormatBulk(removed);
+    List<string>? removed = Cache.LPop(key, popCount);
+
+    if (removed == null)
+    {
+      return "$-1\r\n";
+    }
+    if (removed.Count == 1)
+    {
+      return CommandHepler.FormatBulk(removed[0]);
+    }
+
+    return CommandHepler.FormatArray(removed);
   }
 }
