@@ -1,7 +1,6 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using System.Threading;
 
 TcpListener? server = null;
 
@@ -13,7 +12,7 @@ try
   while (true)
   {
     TcpClient client = server.AcceptTcpClient();
-    Thread clientThread = new Thread(() => HandleClient(client));
+    Thread clientThread = new(() => HandleClient(client));
     clientThread.Start();
   }
 }
@@ -37,6 +36,8 @@ static void HandleClient(TcpClient client)
   while ((i = stream.Read(bytes, 0, bytes.Length)) != 0)
   {
     data = Encoding.ASCII.GetString(bytes, 0, i);
+
+    Console.Error.WriteLine(data);
 
     byte[] msg = Encoding.UTF8.GetBytes("+PONG\r\n");
     stream.Write(msg, 0, msg.Length);
