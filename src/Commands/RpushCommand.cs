@@ -24,7 +24,13 @@ public static class RpushCommand
       return CommandHepler.BuildError("invalid value for 'set'");
     }
 
-    int count = Cache.Append(key, val);
+    List<string> vals = args[2..]
+      .Select(CommandHepler.ReadBulkOrSimple)
+      .Where(value => !string.IsNullOrEmpty(value))
+      .Select(value => value!)
+      .ToList();
+
+    int count = Cache.Append(key, vals);
     return $":{count}\r\n";
   }
 }

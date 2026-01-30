@@ -16,15 +16,15 @@ public static class Cache
     _memoryCache.Set(key, value, TimeSpan.FromMilliseconds(expirationMilliseconds));
   }
 
-  public static int Append(string key, string value)
+  public static int Append(string key, List<string> values)
   {
     if (_memoryCache.TryGetValue(key, out List<string>? existingValues) && existingValues != null)
     {
-      existingValues.Add(value);
+      existingValues.AddRange(values);
       return existingValues.Count;
     }
-    _memoryCache.Set(key, new List<string> { value });
-    return 1;
+    _memoryCache.Set(key, values);
+    return values.Count;
   }
 
   public static bool TryGetValue(string key, out string value)
