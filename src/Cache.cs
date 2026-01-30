@@ -27,6 +27,20 @@ public static class Cache
     return values.Count;
   }
 
+  public static int Prepend(string key, List<string> values)
+  {
+    values.Reverse();
+
+    if (_memoryCache.TryGetValue(key, out List<string>? existingValues) && existingValues != null)
+    {
+      existingValues.InsertRange(0, values);
+      return existingValues.Count;
+    }
+
+    _memoryCache.Set(key, values);
+    return values.Count;
+  }
+
   public static bool TryGetValue(string key, out string value)
   {
     if (_memoryCache.TryGetValue(key, out string? cachedValue) && cachedValue != null)

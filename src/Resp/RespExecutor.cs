@@ -47,6 +47,11 @@ static class RespExecutor
       return RPushCommand.Process(args);
     }
 
+    if (command == "LPUSH")
+    {
+      return LPushCommand.Process(args);
+    }
+
     if (command == "LRANGE")
     {
       return LRangeCommand.Process(args);
