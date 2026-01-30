@@ -44,12 +44,12 @@ static class RespExecutor
 
     if (command == "RPUSH")
     {
-      return RPushCommand.Process(args);
+      return PushCommand.Process(args, PushDirection.Right, "rpush");
     }
 
     if (command == "LPUSH")
     {
-      return LPushCommand.Process(args);
+      return PushCommand.Process(args, PushDirection.Left, "lpush");
     }
 
     if (command == "LRANGE")

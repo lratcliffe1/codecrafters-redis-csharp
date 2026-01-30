@@ -3,13 +3,20 @@ namespace codecrafters_redis.src.Commands;
 using codecrafters_redis.src.Helpers;
 using codecrafters_redis.src.Resp;
 
-public static class RPushCommand
+public enum PushDirection
 {
-  public static string Process(List<RespValue> args)
+  None = 0,
+  Left = 1,
+  Right = 2,
+}
+
+public static class PushCommand
+{
+  public static string Process(List<RespValue> args, PushDirection direction, string commandName)
   {
     if (args.Count < 3)
     {
-      return CommandHepler.BuildError("wrong number of arguments for 'rpush'");
+      return CommandHepler.BuildError($"wrong number of arguments for '{commandName}'");
     }
 
     string? key = CommandHepler.ReadBulkOrSimple(args[1]);
@@ -17,11 +24,11 @@ public static class RPushCommand
 
     if (string.IsNullOrEmpty(key))
     {
-      return CommandHepler.BuildError("invalid key for 'set'");
+      return CommandHepler.BuildError($"invalid key for '{commandName}'");
     }
     if (string.IsNullOrEmpty(val))
     {
-      return CommandHepler.BuildError("invalid value for 'set'");
+      return CommandHepler.BuildError($"invalid value for '{commandName}'");
     }
 
     List<string> vals = args[2..]
@@ -30,7 +37,10 @@ public static class RPushCommand
       .Select(value => value!)
       .ToList();
 
-    int count = Cache.Append(key, vals);
+    int count = direction == PushDirection.Left
+      ? Cache.Prepend(key, vals)
+      : Cache.Append(key, vals);
+
     return $":{count}\r\n";
   }
 }
