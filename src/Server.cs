@@ -44,3 +44,13 @@ static void HandleClient(TcpClient client)
     stream.Flush();
   }
 }
+
+// *2\r\n$4\r\nECHO\r\n$3\r\nhey\r\n
+static List<string> ParseRESP(string data)
+{
+  int numberOfComands = int.Parse(data[1..].Split("\\").First());
+
+  Console.Error.WriteLine(numberOfComands);
+
+  return [];
+}
