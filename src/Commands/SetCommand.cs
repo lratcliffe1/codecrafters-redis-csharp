@@ -1,6 +1,7 @@
 namespace codecrafters_redis.src.Commands;
 
 using codecrafters_redis.src.Helpers;
+using codecrafters_redis.src.Resp;
 using System;
 
 public static class SetCommand
@@ -48,7 +49,10 @@ public static class SetCommand
     }
 
     string? expirationRaw = CommandHepler.ReadBulkOrSimple(args[4]);
-    int expiration = int.Parse(expirationRaw);
+    if (!int.TryParse(expirationRaw, out int expiration))
+    {
+      return CommandHepler.BuildError("invalid expiration for 'set'");
+    }
     int expirationInMilliseconds = isPx ? expiration : expiration * 1000;
 
     if (string.IsNullOrEmpty(key))

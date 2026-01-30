@@ -1,7 +1,7 @@
 using codecrafters_redis.src.Commands;
 using codecrafters_redis.src.Helpers;
 
-namespace codecrafters_redis.src;
+namespace codecrafters_redis.src.Resp;
 
 static class RespExecutor
 {

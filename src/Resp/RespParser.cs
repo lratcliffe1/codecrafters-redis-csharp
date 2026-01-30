@@ -1,4 +1,4 @@
-namespace codecrafters_redis.src;
+namespace codecrafters_redis.src.Resp;
 
 static class RespParser
 {
