@@ -42,6 +42,11 @@ static class RespExecutor
       return GetCommand.Process(args);
     }
 
+    if (command == "RPUSH")
+    {
+      return RpushCommand.Process(args);
+    }
+
     return CommandHepler.BuildError("unknown command'");
   }
 

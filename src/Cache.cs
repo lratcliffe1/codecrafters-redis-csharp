@@ -16,6 +16,17 @@ public static class Cache
     _cache.Set(key, value, TimeSpan.FromMilliseconds(expirationInMilliseconds));
   }
 
+  public static int Append(string key, string value)
+  {
+    if (_cache.TryGetValue(key, out List<string> val))
+    {
+      _cache.Set(key, val.Append(value));
+      return val.Count + 1;
+    }
+    _cache.Set(key, new List<string> { value });
+    return 1;
+  }
+
   public static bool TryGetValue(string key, out string val)
   {
     return _cache.TryGetValue(key, out val);
