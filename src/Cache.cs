@@ -90,6 +90,21 @@ public static class Cache
     return 0;
   }
 
+  public static string? LPop(string key)
+  {
+    if (_memoryCache.TryGetValue(key, out List<string>? existingValues) && existingValues != null)
+    {
+      if (existingValues.Count > 0)
+      {
+        string value = existingValues[0];
+        existingValues.RemoveAt(0);
+        return value;
+      }
+    }
+
+    return null;
+  }
+
   public static void Remove(string key)
   {
     _memoryCache.Remove(key);
