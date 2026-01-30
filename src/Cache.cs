@@ -39,6 +39,23 @@ public static class Cache
     return false;
   }
 
+  public static List<string> GetLrange(string key, int start, int stop)
+  {
+    if (start > stop)
+      return [];
+
+    if (!_memoryCache.TryGetValue(key, out List<string>? existingValues) || existingValues == null)
+      return [];
+
+    if (existingValues.Count < start)
+      return [];
+
+    if (stop > existingValues.Count)
+      stop = existingValues.Count;
+
+    return existingValues[start..stop];
+  }
+
   public static void Remove(string key)
   {
     _memoryCache.Remove(key);

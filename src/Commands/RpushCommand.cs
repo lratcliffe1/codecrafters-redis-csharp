@@ -3,7 +3,7 @@ namespace codecrafters_redis.src.Commands;
 using codecrafters_redis.src.Helpers;
 using codecrafters_redis.src.Resp;
 
-public static class RpushCommand
+public static class RPushCommand
 {
   public static string Process(List<RespValue> args)
   {
