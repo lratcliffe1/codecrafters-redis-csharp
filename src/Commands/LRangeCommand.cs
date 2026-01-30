@@ -27,7 +27,7 @@ public static class LRangeCommand
       return CommandHepler.BuildError("invalid value for 'lrange'");
     }
 
-    List<string> values = Cache.GetLrange(key, start, stop + 1);
+    List<string> values = Cache.GetLrange(key, start, stop);
 
     return CommandHepler.FormatArray(values);
   }

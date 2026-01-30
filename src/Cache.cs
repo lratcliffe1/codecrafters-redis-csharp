@@ -41,19 +41,29 @@ public static class Cache
 
   public static List<string> GetLrange(string key, int start, int stop)
   {
-    if (start > stop)
-      return [];
-
     if (!_memoryCache.TryGetValue(key, out List<string>? existingValues) || existingValues == null)
       return [];
 
-    if (existingValues.Count < start)
+    int count = existingValues.Count;
+    if (count == 0)
       return [];
 
-    if (stop > existingValues.Count)
-      stop = existingValues.Count;
+    int startIndex = start < 0 ? count + start : start;
+    int stopIndex = stop < 0 ? count + stop + 1 : stop + 1;
 
-    return existingValues[start..stop];
+    if (startIndex > stopIndex)
+      return [];
+
+    if (startIndex > count)
+      return [];
+
+    if (startIndex < 0)
+      startIndex = 0;
+
+    if (stopIndex > count)
+      stopIndex = count;
+
+    return existingValues[startIndex..stopIndex];
   }
 
   public static void Remove(string key)
