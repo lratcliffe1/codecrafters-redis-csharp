@@ -48,9 +48,13 @@ static void HandleClient(TcpClient client)
 // *2\r\n$4\r\nECHO\r\n$3\r\nhey\r\n
 static List<string> ParseRESP(string data)
 {
-  int numberOfComands = int.Parse(data[1..].Split("\\").First());
+  Console.Error.WriteLine(data);
 
-  Console.Error.WriteLine(numberOfComands);
+  List<string> dataRows = data.Split("\n\r").ToList();
+
+  int count = int.Parse(dataRows[0][1..]);
+
+
 
   return [];
 }
