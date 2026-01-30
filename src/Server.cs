@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using codecrafters_redis;
 
 TcpListener? server = null;
 
@@ -37,24 +38,11 @@ static void HandleClient(TcpClient client)
   {
     data = Encoding.ASCII.GetString(bytes, 0, i);
 
-    ParseRESP(data);
+    RespValue value = RespParser.Parse(data);
+    string response = RespExecutor.Execute(value);
 
-    // byte[] msg = Encoding.UTF8.GetBytes("+PONG\r\n");
-    // stream.Write(msg, 0, msg.Length);
-    // stream.Flush();
+    byte[] msg = Encoding.UTF8.GetBytes(response);
+    stream.Write(msg, 0, msg.Length);
+    stream.Flush();
   }
-}
-
-// *2\r\n$4\r\nECHO\r\n$3\r\nhey\r\n
-static List<string> ParseRESP(string data)
-{
-  Console.Error.WriteLine(data);
-
-  List<string> dataRows = data.Split("\n\r").ToList();
-
-  // int count = int.Parse(dataRows[0][1..]);
-
-
-
-  return [];
 }
