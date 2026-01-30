@@ -57,6 +57,11 @@ static class RespExecutor
       return LRangeCommand.Process(args);
     }
 
+    if (command == "LLEN")
+    {
+      return LLenCommand.Process(args);
+    }
+
     return CommandHepler.BuildError("unknown command'");
   }
 

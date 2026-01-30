@@ -53,7 +53,7 @@ public static class Cache
     return false;
   }
 
-  public static List<string> GetLrange(string key, int start, int stop)
+  public static List<string> GetLRange(string key, int start, int stop)
   {
     if (!_memoryCache.TryGetValue(key, out List<string>? existingValues) || existingValues == null)
       return [];
@@ -78,6 +78,16 @@ public static class Cache
       stopIndex = count;
 
     return existingValues[startIndex..stopIndex];
+  }
+
+  public static int GetLLen(string key)
+  {
+    if (_memoryCache.TryGetValue(key, out List<string>? existingValues) && existingValues != null)
+    {
+      return existingValues.Count;
+    }
+
+    return 0;
   }
 
   public static void Remove(string key)
