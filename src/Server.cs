@@ -39,9 +39,9 @@ static void HandleClient(TcpClient client)
 
     ParseRESP(data);
 
-    byte[] msg = Encoding.UTF8.GetBytes("+PONG\r\n");
-    stream.Write(msg, 0, msg.Length);
-    stream.Flush();
+    // byte[] msg = Encoding.UTF8.GetBytes("+PONG\r\n");
+    // stream.Write(msg, 0, msg.Length);
+    // stream.Flush();
   }
 }
 
@@ -52,7 +52,7 @@ static List<string> ParseRESP(string data)
 
   List<string> dataRows = data.Split("\n\r").ToList();
 
-  int count = int.Parse(dataRows[0][1..]);
+  // int count = int.Parse(dataRows[0][1..]);
 
 
 
