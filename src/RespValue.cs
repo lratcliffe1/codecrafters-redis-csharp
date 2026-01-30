@@ -1,6 +1,6 @@
 namespace codecrafters_redis.src;
 
-enum RespType
+public enum RespType
 {
   SimpleString,
   Error,
@@ -9,7 +9,7 @@ enum RespType
   Array
 }
 
-sealed class RespValue
+public class RespValue
 {
   public RespType Type { get; }
   public string? StringValue { get; }

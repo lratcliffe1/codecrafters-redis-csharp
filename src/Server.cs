@@ -41,7 +41,9 @@ static void HandleClient(TcpClient client, Dictionary<string, string> DATABASE)
     data = Encoding.ASCII.GetString(bytes, 0, i);
 
     RespValue value = RespParser.Parse(data);
-    string response = RespExecutor.Execute(value, DATABASE);
+    string response = RespExecutor.Execute(value);
+
+    Console.Error.WriteLine(response);
 
     byte[] msg = Encoding.UTF8.GetBytes(response);
     stream.Write(msg, 0, msg.Length);
