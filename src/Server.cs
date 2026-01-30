@@ -37,7 +37,7 @@ static void HandleClient(TcpClient client)
   {
     data = Encoding.ASCII.GetString(bytes, 0, i);
 
-    Console.Error.WriteLine(data);
+    ParseRESP(data);
 
     byte[] msg = Encoding.UTF8.GetBytes("+PONG\r\n");
     stream.Write(msg, 0, msg.Length);
