@@ -1,9 +1,11 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using codecrafters_redis;
+using codecrafters_redis.src;
 
 TcpListener? server = null;
+
+var DATABASE = new Dictionary<string, string>();
 
 try
 {
@@ -13,7 +15,7 @@ try
   while (true)
   {
     TcpClient client = server.AcceptTcpClient();
-    Thread clientThread = new(() => HandleClient(client));
+    Thread clientThread = new(() => HandleClient(client, DATABASE));
     clientThread.Start();
   }
 }
@@ -26,7 +28,7 @@ finally
   server?.Stop();
 }
 
-static void HandleClient(TcpClient client)
+static void HandleClient(TcpClient client, Dictionary<string, string> DATABASE)
 {
   using TcpClient _ = client;
   byte[] bytes = new byte[256];
@@ -39,7 +41,7 @@ static void HandleClient(TcpClient client)
     data = Encoding.ASCII.GetString(bytes, 0, i);
 
     RespValue value = RespParser.Parse(data);
-    string response = RespExecutor.Execute(value);
+    string response = RespExecutor.Execute(value, DATABASE);
 
     byte[] msg = Encoding.UTF8.GetBytes(response);
     stream.Write(msg, 0, msg.Length);
