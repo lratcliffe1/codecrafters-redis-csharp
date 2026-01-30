@@ -4,36 +4,43 @@ namespace codecrafters_redis.src;
 
 public static class Cache
 {
-  private static readonly IMemoryCache _cache = new MemoryCache(new MemoryCacheOptions());
+  private static readonly IMemoryCache _memoryCache = new MemoryCache(new MemoryCacheOptions());
 
   public static void Set(string key, string value)
   {
-    _cache.Set(key, value);
+    _memoryCache.Set(key, value);
   }
 
-  public static void Set(string key, string value, int expirationInMilliseconds)
+  public static void Set(string key, string value, int expirationMilliseconds)
   {
-    _cache.Set(key, value, TimeSpan.FromMilliseconds(expirationInMilliseconds));
+    _memoryCache.Set(key, value, TimeSpan.FromMilliseconds(expirationMilliseconds));
   }
 
   public static int Append(string key, string value)
   {
-    if (_cache.TryGetValue(key, out List<string> val))
+    if (_memoryCache.TryGetValue(key, out List<string>? existingValues) && existingValues != null)
     {
-      _cache.Set(key, val.Append(value));
-      return val.Count + 1;
+      existingValues.Add(value);
+      return existingValues.Count;
     }
-    _cache.Set(key, new List<string> { value });
+    _memoryCache.Set(key, new List<string> { value });
     return 1;
   }
 
-  public static bool TryGetValue(string key, out string val)
+  public static bool TryGetValue(string key, out string value)
   {
-    return _cache.TryGetValue(key, out val);
+    if (_memoryCache.TryGetValue(key, out string? cachedValue) && cachedValue != null)
+    {
+      value = cachedValue;
+      return true;
+    }
+
+    value = string.Empty;
+    return false;
   }
 
   public static void Remove(string key)
   {
-    _cache.Remove(key);
+    _memoryCache.Remove(key);
   }
 }
