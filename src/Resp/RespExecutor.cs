@@ -72,6 +72,11 @@ static class RespExecutor
       return BLPopCommand.Process(args);
     }
 
+    if (command == "TYPE")
+    {
+      return TypeCommand.Process(args);
+    }
+
     return CommandHepler.BuildError("unknown command'");
   }
 

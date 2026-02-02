@@ -27,6 +27,11 @@ public static class CommandHepler
     return $"${value.Length}\r\n{value}\r\n";
   }
 
+  public static string FormatSimple(string value)
+  {
+    return $"+{value}\r\n";
+  }
+
   public static string FormatArray(IReadOnlyList<string> values)
   {
     List<string> encoded = values.Select(FormatBulk).ToList();
