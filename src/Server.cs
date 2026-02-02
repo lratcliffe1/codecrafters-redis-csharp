@@ -5,8 +5,6 @@ using codecrafters_redis.src.Resp;
 
 TcpListener? server = null;
 
-var DATABASE = new Dictionary<string, string>();
-
 try
 {
   server = new TcpListener(IPAddress.Any, 6379);
@@ -15,7 +13,7 @@ try
   while (true)
   {
     TcpClient client = server.AcceptTcpClient();
-    Thread clientThread = new(() => HandleClient(client, DATABASE));
+    Thread clientThread = new(() => HandleClient(client));
     clientThread.Start();
   }
 }
@@ -28,7 +26,7 @@ finally
   server?.Stop();
 }
 
-static void HandleClient(TcpClient client, Dictionary<string, string> DATABASE)
+static void HandleClient(TcpClient client)
 {
   using TcpClient _ = client;
   byte[] bytes = new byte[256];
@@ -42,8 +40,6 @@ static void HandleClient(TcpClient client, Dictionary<string, string> DATABASE)
 
     RespValue value = RespParser.Parse(data);
     string response = RespExecutor.Execute(value);
-
-    Console.Error.WriteLine(response);
 
     byte[] msg = Encoding.UTF8.GetBytes(response);
     stream.Write(msg, 0, msg.Length);

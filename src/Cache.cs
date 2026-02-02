@@ -2,18 +2,24 @@ using Microsoft.Extensions.Caching.Memory;
 
 namespace codecrafters_redis.src;
 
-public static class Cache
+public class Cache
 {
-  private static readonly IMemoryCache _memoryCache = new MemoryCache(new MemoryCacheOptions());
+  private static readonly MemoryCache _memoryCache = new MemoryCache(new MemoryCacheOptions());
+
+  private static readonly Dictionary<string, List<ManualResetEvent>> _events = [];
 
   public static void Set(string key, string value)
   {
     _memoryCache.Set(key, value);
+
+    UpdateBlockingEvents(key);
   }
 
   public static void Set(string key, string value, int expirationMilliseconds)
   {
     _memoryCache.Set(key, value, TimeSpan.FromMilliseconds(expirationMilliseconds));
+
+    UpdateBlockingEvents(key);
   }
 
   public static int Append(string key, List<string> values)
@@ -21,9 +27,13 @@ public static class Cache
     if (_memoryCache.TryGetValue(key, out List<string>? existingValues) && existingValues != null)
     {
       existingValues.AddRange(values);
+
+      UpdateBlockingEvents(key);
       return existingValues.Count;
     }
     _memoryCache.Set(key, values);
+
+    UpdateBlockingEvents(key);
     return values.Count;
   }
 
@@ -34,10 +44,14 @@ public static class Cache
     if (_memoryCache.TryGetValue(key, out List<string>? existingValues) && existingValues != null)
     {
       existingValues.InsertRange(0, values);
+
+      UpdateBlockingEvents(key);
       return existingValues.Count;
     }
 
     _memoryCache.Set(key, values);
+
+    UpdateBlockingEvents(key);
     return values.Count;
   }
 
@@ -105,8 +119,78 @@ public static class Cache
     return null;
   }
 
+  public static List<string>? BLPop(string key, int expiration)
+  {
+    var result = LPop(key, 1);
+    if (result != null)
+      return result;
+
+    var newEvent = new ManualResetEvent(false);
+
+    try
+    {
+      lock (_events)
+      {
+        if (_events.TryGetValue(key, out var blockingEvents))
+        {
+          blockingEvents.Add(newEvent);
+        }
+        else
+        {
+          _events.Add(key, [newEvent]);
+        }
+      }
+
+      if (expiration == 0)
+      {
+        newEvent.WaitOne();
+      }
+      else
+      {
+        newEvent.WaitOne(expiration * 1000);
+      }
+
+      return LPop(key, 1);
+    }
+    finally
+    {
+      lock (_events)
+      {
+        if (_events.TryGetValue(key, out var blockingEvents))
+        {
+          blockingEvents.Remove(newEvent);
+          if (blockingEvents.Count == 0)
+          {
+            _events.Remove(key);
+          }
+        }
+      }
+
+      newEvent.Dispose();
+    }
+  }
+
   public static void Remove(string key)
   {
     _memoryCache.Remove(key);
+  }
+
+  private static void UpdateBlockingEvents(string key)
+  {
+    lock (_events)
+    {
+      if (_events.TryGetValue(key, out var blockingEvents) && blockingEvents.Count > 0)
+      {
+        var nextEvent = blockingEvents[0];
+        blockingEvents.RemoveAt(0);
+
+        if (blockingEvents.Count == 0)
+        {
+          _events.Remove(key);
+        }
+
+        nextEvent.Set();
+      }
+    }
   }
 }
