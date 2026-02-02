@@ -22,62 +22,21 @@ static class RespExecutor
 
     command = command.ToUpperInvariant();
 
-    if (command == "PING")
+    return command switch
     {
-      return PingCommand.Process(args);
-    }
-
-    if (command == "ECHO")
-    {
-      return EchoCommand.Process(args);
-    }
-
-    if (command == "SET")
-    {
-      return SetCommand.Process(args);
-    }
-
-    if (command == "GET")
-    {
-      return GetCommand.Process(args);
-    }
-
-    if (command == "RPUSH")
-    {
-      return PushCommand.Process(args, PushDirection.Right, "rpush");
-    }
-
-    if (command == "LPUSH")
-    {
-      return PushCommand.Process(args, PushDirection.Left, "lpush");
-    }
-
-    if (command == "LRANGE")
-    {
-      return LRangeCommand.Process(args);
-    }
-
-    if (command == "LLEN")
-    {
-      return LLenCommand.Process(args);
-    }
-
-    if (command == "LPOP")
-    {
-      return LPopCommand.Process(args);
-    }
-
-    if (command == "BLPOP")
-    {
-      return BLPopCommand.Process(args);
-    }
-
-    if (command == "TYPE")
-    {
-      return TypeCommand.Process(args);
-    }
-
-    return CommandHepler.BuildError("unknown command'");
+      "PING" => PingCommand.Process(args),
+      "ECHO" => EchoCommand.Process(args),
+      "SET" => SetCommand.Process(args),
+      "GET" => GetCommand.Process(args),
+      "RPUSH" => PushCommand.Process(args, PushDirection.Right, "rpush"),
+      "LPUSH" => PushCommand.Process(args, PushDirection.Left, "lpush"),
+      "LRANGE" => LRangeCommand.Process(args),
+      "LLEN" => LLenCommand.Process(args),
+      "LPOP" => LPopCommand.Process(args),
+      "BLPOP" => BLPopCommand.Process(args),
+      "TYPE" => TypeCommand.Process(args),
+      _ => CommandHepler.BuildError("unknown command'"),
+    };
   }
 
   static string ReadCommandName(RespValue value)
