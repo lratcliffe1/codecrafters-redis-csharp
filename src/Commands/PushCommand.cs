@@ -1,5 +1,6 @@
 namespace codecrafters_redis.src.Commands;
 
+using codecrafters_redis.src.Cache;
 using codecrafters_redis.src.Helpers;
 using codecrafters_redis.src.Resp;
 

@@ -1,5 +1,6 @@
 namespace codecrafters_redis.src.Commands;
 
+using codecrafters_redis.src.Cache;
 using codecrafters_redis.src.Helpers;
 using codecrafters_redis.src.Resp;
 using System;
@@ -30,7 +31,7 @@ public static class SetCommand
       return CommandHepler.BuildError("invalid value for 'set'");
     }
 
-    Cache.Set(key, val);
+    Cache.Set(key, CacheValue.String(val));
     return "+OK\r\n";
   }
 
@@ -64,7 +65,7 @@ public static class SetCommand
       return CommandHepler.BuildError("invalid value for 'set'");
     }
 
-    Cache.Set(key, val, expirationInMilliseconds);
+    Cache.Set(key, CacheValue.String(val), expirationInMilliseconds);
     return "+OK\r\n";
   }
 }

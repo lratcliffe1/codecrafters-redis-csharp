@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Caching.Memory;
 
-namespace codecrafters_redis.src;
+namespace codecrafters_redis.src.Cache;
 
 public class Cache
 {
@@ -8,14 +8,14 @@ public class Cache
 
   private static readonly Dictionary<string, List<ManualResetEvent>> _events = [];
 
-  public static void Set(string key, string value)
+  public static void Set(string key, CacheValue value)
   {
     _memoryCache.Set(key, value);
 
     UpdateBlockingEvents(key);
   }
 
-  public static void Set(string key, string value, int expirationMilliseconds)
+  public static void Set(string key, CacheValue value, int expirationMilliseconds)
   {
     _memoryCache.Set(key, value, TimeSpan.FromMilliseconds(expirationMilliseconds));
 
@@ -24,14 +24,14 @@ public class Cache
 
   public static int Append(string key, List<string> values)
   {
-    if (_memoryCache.TryGetValue(key, out List<string>? existingValues) && existingValues != null)
+    if (TryGetListValue(key, out List<string> existingValues))
     {
       existingValues.AddRange(values);
 
       UpdateBlockingEvents(key);
       return existingValues.Count;
     }
-    _memoryCache.Set(key, values);
+    _memoryCache.Set(key, CacheValue.List(values));
 
     UpdateBlockingEvents(key);
     return values.Count;
@@ -41,7 +41,7 @@ public class Cache
   {
     values.Reverse();
 
-    if (_memoryCache.TryGetValue(key, out List<string>? existingValues) && existingValues != null)
+    if (TryGetListValue(key, out List<string> existingValues))
     {
       existingValues.InsertRange(0, values);
 
@@ -49,27 +49,27 @@ public class Cache
       return existingValues.Count;
     }
 
-    _memoryCache.Set(key, values);
+    _memoryCache.Set(key, CacheValue.List(values));
 
     UpdateBlockingEvents(key);
     return values.Count;
   }
 
-  public static bool TryGetValue(string key, out string value)
+  public static bool TryGetValue(string key, out CacheValue? value)
   {
-    if (_memoryCache.TryGetValue(key, out string? cachedValue) && cachedValue != null)
+    if (_memoryCache.TryGetValue(key, out CacheValue? cachedValue) && cachedValue != null)
     {
       value = cachedValue;
       return true;
     }
 
-    value = string.Empty;
+    value = null;
     return false;
   }
 
   public static List<string> GetLRange(string key, int start, int stop)
   {
-    if (!_memoryCache.TryGetValue(key, out List<string>? existingValues) || existingValues == null)
+    if (!TryGetListValue(key, out List<string> existingValues))
       return [];
 
     int count = existingValues.Count;
@@ -96,7 +96,7 @@ public class Cache
 
   public static int GetLLen(string key)
   {
-    if (_memoryCache.TryGetValue(key, out List<string>? existingValues) && existingValues != null)
+    if (TryGetListValue(key, out List<string> existingValues))
     {
       return existingValues.Count;
     }
@@ -106,7 +106,7 @@ public class Cache
 
   public static List<string>? LPop(string key, int popCount)
   {
-    if (_memoryCache.TryGetValue(key, out List<string>? existingValues) && existingValues != null)
+    if (TryGetListValue(key, out List<string> existingValues))
     {
       if (existingValues.Count > 0)
       {
@@ -170,9 +170,15 @@ public class Cache
     }
   }
 
-  public static void Remove(string key)
+  private static bool TryGetListValue(string key, out List<string> values)
   {
-    _memoryCache.Remove(key);
+    values = [];
+    if (_memoryCache.TryGetValue(key, out CacheValue? cachedValue) && cachedValue != null)
+    {
+      return cachedValue.TryGetList(out values);
+    }
+
+    return false;
   }
 
   private static void UpdateBlockingEvents(string key)

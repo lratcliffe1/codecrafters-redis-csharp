@@ -1,5 +1,6 @@
 namespace codecrafters_redis.src.Commands;
 
+using codecrafters_redis.src.Cache;
 using codecrafters_redis.src.Helpers;
 using codecrafters_redis.src.Resp;
 
@@ -19,11 +20,11 @@ public static class GetCommand
       return CommandHepler.BuildError("invalid of key for 'get'");
     }
 
-    if (!Cache.TryGetValue(key, out string val))
+    if (!Cache.TryGetValue(key, out CacheValue? val) || val == null)
     {
       return "$-1\r\n";
     }
 
-    return CommandHepler.FormatBulk(val);
+    return CommandHepler.FormatValue(val);
   }
 }
