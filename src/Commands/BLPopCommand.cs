@@ -20,7 +20,7 @@ public static class BLPopCommand
     }
 
     string? expirationRaw = CommandHepler.ReadBulkOrSimple(args[2]);
-    if (!int.TryParse(expirationRaw, out int expiration) || expiration < 0)
+    if (!double.TryParse(expirationRaw, out double expiration) || expiration < 0)
     {
       return CommandHepler.BuildError("invalid expiration for 'blpop'");
     }
@@ -29,7 +29,7 @@ public static class BLPopCommand
 
     if (removed == null)
     {
-      return "$-1\r\n";
+      return "*-1\r\n";
     }
 
     return CommandHepler.FormatArray(removed.Prepend(key).ToList());

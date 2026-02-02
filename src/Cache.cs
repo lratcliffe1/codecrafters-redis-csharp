@@ -119,7 +119,7 @@ public class Cache
     return null;
   }
 
-  public static List<string>? BLPop(string key, int expiration)
+  public static List<string>? BLPop(string key, double expiration)
   {
     var result = LPop(key, 1);
     if (result != null)
@@ -147,7 +147,7 @@ public class Cache
       }
       else
       {
-        newEvent.WaitOne(expiration * 1000);
+        newEvent.WaitOne((int)(expiration * 1000));
       }
 
       return LPop(key, 1);
