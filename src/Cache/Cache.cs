@@ -10,6 +10,10 @@ public class Cache
 
   public static void Set(string key, CacheValue value)
   {
+    // if (TryGetValue(key, out CacheValue? _))
+    // {
+    _memoryCache.Remove(key);
+    // }
     _memoryCache.Set(key, value);
 
     UpdateBlockingEvents(key);
