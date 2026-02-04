@@ -8,92 +8,138 @@ public static class XAddCommand
 {
   public static string Process(List<RespValue> args)
   {
-    if (args.Count < 5 || args.Count % 2 != 1)
+    if (!HasValidArgs(args))
     {
       return CommandHepler.BuildError("wrong number of arguments for 'xadd'");
     }
 
-    string? key = CommandHepler.ReadBulkOrSimple(args[1]);
-
-    if (string.IsNullOrEmpty(key))
+    if (!TryReadKeyAndId(args, out var key, out var idToken, out var error))
     {
-      return CommandHepler.BuildError("invalid of key for 'xadd'");
+      return error;
     }
 
-    string? id = CommandHepler.ReadBulkOrSimple(args[2]);
-
-    if (string.IsNullOrEmpty(id))
+    if (!TryResolveEntryId(key, idToken, out var entryId, out error))
     {
-      return CommandHepler.BuildError("invalid of key for 'xadd'");
+      return error;
     }
 
-    if (id == "0-0")
-    {
-      return CommandHepler.BuildError("The ID specified in XADD must be greater than 0-0");
-    }
+    var fields = ReadFields(args);
+    Cache.Set(key, CacheValue.Stream([new StreamEntry(entryId, fields)]));
 
-    var testing = id.Split("-");
-
-    if (Cache.TryGetValue(key, out var cacheValue) && cacheValue != null)
-    {
-      if (cacheValue.TryGetStream(out var oldValue))
-      {
-        var lastValue = oldValue.Last();
-
-        var lastValueIdSplit = lastValue.Id.Split("-").Select(long.Parse).ToList();
-        var a = Parse(testing[0]);
-        var b = Parse(testing[1], a, lastValueIdSplit);
-
-        var newValueIdSplit = new List<long> { a, b };
-        id = string.Join("-", newValueIdSplit);
-
-        if (lastValueIdSplit[0] > newValueIdSplit[0])
-          return CommandHepler.BuildError("The ID specified in XADD is equal or smaller than the target stream top item");
-
-        if (lastValueIdSplit[0] == newValueIdSplit[0] && lastValueIdSplit[1] >= newValueIdSplit[1])
-          return CommandHepler.BuildError("The ID specified in XADD is equal or smaller than the target stream top item");
-      }
-    }
-    else if (testing[1] == "*")
-    {
-      if (testing[0] == "0")
-        id = string.Join("-", testing[0], 1);
-      else
-        id = string.Join("-", testing[0], 0);
-    }
-
-    Dictionary<string, string> keyValuePairs = [];
-
-    for (var i = 1; i < args.Count; i += 2)
-    {
-      keyValuePairs.Add(CommandHepler.ReadBulkOrSimple(args[i])!, CommandHepler.ReadBulkOrSimple(args[i + 1])!);
-    }
-
-    Cache.Set(key, CacheValue.Stream([new StreamEntry(id, keyValuePairs)]));
-
-    return CommandHepler.FormatBulk(id);
+    return CommandHepler.FormatBulk(entryId);
   }
 
-  private static long Parse(string value)
+  private static bool HasValidArgs(List<RespValue> args)
   {
-    if (value == "*")
+    return args.Count >= 5 && args.Count % 2 == 1;
+  }
+
+  private static bool TryReadKeyAndId(List<RespValue> args, out string key, out string idToken, out string error)
+  {
+    key = CommandHepler.ReadBulkOrSimple(args[1]) ?? string.Empty;
+    if (string.IsNullOrEmpty(key))
+    {
+      idToken = string.Empty;
+      error = CommandHepler.BuildError("invalid of key for 'xadd'");
+      return false;
+    }
+
+    idToken = CommandHepler.ReadBulkOrSimple(args[2]) ?? string.Empty;
+    if (string.IsNullOrEmpty(idToken))
+    {
+      error = CommandHepler.BuildError("invalid of key for 'xadd'");
+      return false;
+    }
+
+    if (idToken == "0-0")
+    {
+      error = CommandHepler.BuildError("The ID specified in XADD must be greater than 0-0");
+      return false;
+    }
+
+    if (idToken == "*")
+    {
+      idToken = "*-*";
+    }
+
+    error = string.Empty;
+    return true;
+  }
+
+  private static bool TryResolveEntryId(string key, string idToken, out string entryId, out string error)
+  {
+    var idParts = idToken.Split("-");
+    var milliseconds = ParseMillisecondsToken(idParts[0]);
+
+    if (Cache.TryGetValue(key, out var cacheValue) && cacheValue != null && cacheValue.TryGetStream(out var entries) && entries.Count > 0)
+    {
+      var lastEntry = entries.Last();
+      var lastEntryIdParts = lastEntry.Id.Split("-").Select(long.Parse).ToList();
+
+      var sequence = ParseSequenceToken(idParts[1], milliseconds, lastEntryIdParts);
+      var newEntryIdParts = new List<long> { milliseconds, sequence };
+      entryId = string.Join("-", newEntryIdParts);
+
+      if (lastEntryIdParts[0] > newEntryIdParts[0])
+      {
+        error = CommandHepler.BuildError("The ID specified in XADD is equal or smaller than the target stream top item");
+        return false;
+      }
+
+      if (lastEntryIdParts[0] == newEntryIdParts[0] && lastEntryIdParts[1] >= newEntryIdParts[1])
+      {
+        error = CommandHepler.BuildError("The ID specified in XADD is equal or smaller than the target stream top item");
+        return false;
+      }
+
+      error = string.Empty;
+      return true;
+    }
+
+    var initialSequence = ParseSequenceToken(idParts[1], milliseconds);
+    if (milliseconds == 0 && initialSequence == 0)
+    {
+      initialSequence++;
+    }
+
+    entryId = string.Join("-", new List<long> { milliseconds, initialSequence });
+    error = string.Empty;
+    return true;
+  }
+
+  private static Dictionary<string, string> ReadFields(List<RespValue> args)
+  {
+    Dictionary<string, string> fields = [];
+    for (var i = 3; i < args.Count; i += 2)
+    {
+      var field = CommandHepler.ReadBulkOrSimple(args[i]) ?? string.Empty;
+      var value = CommandHepler.ReadBulkOrSimple(args[i + 1]) ?? string.Empty;
+      fields.Add(field, value);
+    }
+
+    return fields;
+  }
+
+  private static long ParseMillisecondsToken(string token)
+  {
+    if (token == "*")
     {
       return DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
     }
 
-    return long.Parse(value);
+    return long.Parse(token);
   }
 
-  private static long Parse(string value, long previousValue, List<long> lastValueIdSplit)
+  private static long ParseSequenceToken(string token, long milliseconds, List<long>? lastEntryIdParts = null)
   {
-    if (value == "*")
+    if (token == "*")
     {
-      if (previousValue > lastValueIdSplit[0])
+      if (lastEntryIdParts == null || milliseconds > lastEntryIdParts[0])
         return 0;
 
-      return lastValueIdSplit[1] + 1;
+      return lastEntryIdParts[1] + 1;
     }
 
-    return long.Parse(value);
+    return long.Parse(token);
   }
 }
