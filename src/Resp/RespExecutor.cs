@@ -36,6 +36,7 @@ static class RespExecutor
       "BLPOP" => BLPopCommand.Process(args),
       "TYPE" => TypeCommand.Process(args),
       "XADD" => XAddCommand.Process(args),
+      "XRANGE" => XRangeCommand.Process(args),
       _ => CommandHepler.BuildError("unknown command'"),
     };
   }

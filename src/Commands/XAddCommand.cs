@@ -18,13 +18,26 @@ public static class XAddCommand
       return error;
     }
 
-    if (!TryResolveEntryId(key, idToken, out var entryId, out error))
+    List<StreamEntry> entries = [];
+    List<long>? lastEntryIdParts = null;
+    if (Cache.TryGetValue(key, out var cacheValue) && cacheValue != null && cacheValue.TryGetStream(out var existingEntries))
+    {
+      entries = existingEntries;
+      if (entries.Count > 0)
+      {
+        var lastEntry = entries.Last();
+        lastEntryIdParts = lastEntry.Id.Split("-").Select(long.Parse).ToList();
+      }
+    }
+
+    if (!TryResolveEntryId(idToken, lastEntryIdParts, out var entryId, out error))
     {
       return error;
     }
 
     var fields = ReadFields(args);
-    Cache.Set(key, CacheValue.Stream([new StreamEntry(entryId, fields)]));
+    entries.Add(new StreamEntry(entryId, fields));
+    Cache.Set(key, CacheValue.Stream(entries));
 
     return CommandHepler.FormatBulk(entryId);
   }
@@ -66,43 +79,26 @@ public static class XAddCommand
     return true;
   }
 
-  private static bool TryResolveEntryId(string key, string idToken, out string entryId, out string error)
+  private static bool TryResolveEntryId(string idToken, List<long>? lastEntryIdParts, out string entryId, out string error)
   {
     var idParts = idToken.Split("-");
     var milliseconds = ParseMillisecondsToken(idParts[0]);
 
-    if (Cache.TryGetValue(key, out var cacheValue) && cacheValue != null && cacheValue.TryGetStream(out var entries) && entries.Count > 0)
+    var sequence = ParseSequenceToken(idParts[1], milliseconds, lastEntryIdParts);
+    if (lastEntryIdParts == null && milliseconds == 0 && sequence == 0)
     {
-      var lastEntry = entries.Last();
-      var lastEntryIdParts = lastEntry.Id.Split("-").Select(long.Parse).ToList();
-
-      var sequence = ParseSequenceToken(idParts[1], milliseconds, lastEntryIdParts);
-      var newEntryIdParts = new List<long> { milliseconds, sequence };
-      entryId = string.Join("-", newEntryIdParts);
-
-      if (lastEntryIdParts[0] > newEntryIdParts[0])
-      {
-        error = CommandHepler.BuildError("The ID specified in XADD is equal or smaller than the target stream top item");
-        return false;
-      }
-
-      if (lastEntryIdParts[0] == newEntryIdParts[0] && lastEntryIdParts[1] >= newEntryIdParts[1])
-      {
-        error = CommandHepler.BuildError("The ID specified in XADD is equal or smaller than the target stream top item");
-        return false;
-      }
-
-      error = string.Empty;
-      return true;
+      sequence++;
     }
 
-    var initialSequence = ParseSequenceToken(idParts[1], milliseconds);
-    if (milliseconds == 0 && initialSequence == 0)
+    var newEntryIdParts = new List<long> { milliseconds, sequence };
+    entryId = string.Join("-", newEntryIdParts);
+
+    if (lastEntryIdParts != null && IsNotGreaterThanLastId(newEntryIdParts, lastEntryIdParts))
     {
-      initialSequence++;
+      error = CommandHepler.BuildError("The ID specified in XADD is equal or smaller than the target stream top item");
+      return false;
     }
 
-    entryId = string.Join("-", new List<long> { milliseconds, initialSequence });
     error = string.Empty;
     return true;
   }
@@ -141,5 +137,13 @@ public static class XAddCommand
     }
 
     return long.Parse(token);
+  }
+
+  private static bool IsNotGreaterThanLastId(List<long> candidateId, List<long> lastEntryId)
+  {
+    if (lastEntryId[0] > candidateId[0])
+      return true;
+
+    return lastEntryId[0] == candidateId[0] && lastEntryId[1] >= candidateId[1];
   }
 }

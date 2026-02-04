@@ -51,6 +51,31 @@ public static class CommandHepler
     return builder.ToString();
   }
 
+  public static string FormatStreamEntries(IReadOnlyList<StreamEntry> streamValue)
+  {
+    List<string> entries = [];
+    foreach (StreamEntry entry in streamValue)
+    {
+      List<string> fields = [];
+      foreach (KeyValuePair<string, string> field in entry.Fields)
+      {
+        fields.Add(field.Key);
+        fields.Add(field.Value);
+      }
+
+      string fieldsResp = FormatArray(fields);
+      string entryResp = FormatArrayOfResp([FormatBulk(entry.Id), fieldsResp]);
+      entries.Add(entryResp);
+    }
+
+    return FormatArrayOfResp(entries);
+  }
+
+  public static string FormatValue(IReadOnlyList<StreamEntry> streamValue)
+  {
+    return FormatStreamEntries(streamValue);
+  }
+
   public static string FormatValue(CacheValue value)
   {
     switch (value.Type)
@@ -100,22 +125,7 @@ public static class CommandHepler
       case CacheValueType.Stream:
         if (value.TryGetStream(out List<StreamEntry> streamValue))
         {
-          List<string> entries = [];
-          foreach (StreamEntry entry in streamValue)
-          {
-            List<string> fields = [];
-            foreach (KeyValuePair<string, string> field in entry.Fields)
-            {
-              fields.Add(field.Key);
-              fields.Add(field.Value);
-            }
-
-            string fieldsResp = FormatArray(fields);
-            string entryResp = FormatArrayOfResp([FormatBulk(entry.Id), fieldsResp]);
-            entries.Add(entryResp);
-          }
-
-          return FormatArrayOfResp(entries);
+          return FormatStreamEntries(streamValue);
         }
         break;
       case CacheValueType.VectorSet:
