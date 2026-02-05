@@ -25,7 +25,7 @@ public static class XRangeCommand
     string startValue = CommandHepler.ReadBulkOrSimple(args[2])!;
     string endValue = CommandHepler.ReadBulkOrSimple(args[3])!;
     List<long> splitStart = (startValue == "-" ? "0-0" : startValue).Split("-").Select(long.Parse).ToList();
-    List<long> splitEnd = (endValue == "-" ? $"{long.MaxValue}-{long.MaxValue}" : endValue).Split("-").Select(long.Parse).ToList();
+    List<long> splitEnd = (endValue == "+" ? $"{long.MaxValue}-{long.MaxValue}" : endValue).Split("-").Select(long.Parse).ToList();
 
     if (Cache.TryGetValue(key, out var cacheValue) && cacheValue != null && cacheValue.TryGetStream(out var entries) && entries.Count > 0)
     {
