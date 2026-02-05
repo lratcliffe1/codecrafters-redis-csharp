@@ -17,7 +17,7 @@ public static class GetCommand
 
     if (string.IsNullOrEmpty(key))
     {
-      return CommandHepler.BuildError("invalid of key for 'get'");
+      return CommandHepler.BuildError("invalid key for 'get'");
     }
 
     if (!Cache.TryGetValue(key, out CacheValue? val) || val == null)

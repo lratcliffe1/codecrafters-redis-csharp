@@ -28,7 +28,7 @@ public static class LPopCommand
     string? popCountRaw = CommandHepler.ReadBulkOrSimple(args[2]);
     if (!int.TryParse(popCountRaw, out int popCount))
     {
-      return CommandHepler.BuildError("invalid expiration for 'set'");
+      return CommandHepler.BuildError("invalid count for 'lpop'");
     }
 
     List<string>? removed = Cache.LPop(key, popCount);

@@ -20,33 +20,13 @@ public static class XRangeCommand
       return CommandHepler.BuildError("invalid key for 'xrange'");
     }
 
-    List<StreamEntry> result = [];
-
     string startValue = CommandHepler.ReadBulkOrSimple(args[2])!;
     string endValue = CommandHepler.ReadBulkOrSimple(args[3])!;
-    List<long> splitStart = (startValue == "-" ? "0-0" : startValue).Split("-").Select(long.Parse).ToList();
-    List<long> splitEnd = (endValue == "+" ? $"{long.MaxValue}-{long.MaxValue}" : endValue).Split("-").Select(long.Parse).ToList();
+    List<StreamEntry> result = [];
 
     if (Cache.TryGetValue(key, out var cacheValue) && cacheValue != null && cacheValue.TryGetStream(out var entries) && entries.Count > 0)
     {
-      foreach (var entry in entries)
-      {
-        var splitId = entry.Id.Split("-").Select(long.Parse).ToList();
-
-        if (splitId[0] < splitStart[0])
-          continue;
-
-        if (splitId[0] > splitEnd[0])
-          continue;
-
-        if (splitId[0] == splitStart[0] && splitId[1] < splitStart[1])
-          continue;
-
-        if (splitId[0] == splitEnd[0] && splitId[1] > splitEnd[1])
-          continue;
-
-        result.Add(entry);
-      }
+      result = StreamRangeHelper.FilterEntries(entries, startValue, endValue);
     }
 
     return CommandHepler.FormatStreamEntries(result);

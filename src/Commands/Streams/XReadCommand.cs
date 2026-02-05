@@ -10,43 +10,21 @@ public static class XReadCommand
   {
     if (args.Count != 4)
     {
-      return CommandHepler.BuildError("wrong number of arguments for 'xrange'");
+      return CommandHepler.BuildError("wrong number of arguments for 'xread'");
     }
 
     string? key = CommandHepler.ReadBulkOrSimple(args[2]);
 
     if (string.IsNullOrEmpty(key))
     {
-      return CommandHepler.BuildError("invalid key for 'xrange'");
+      return CommandHepler.BuildError("invalid key for 'xread'");
     }
 
-    List<StreamEntry> result = [];
-
     string startValue = CommandHepler.ReadBulkOrSimple(args[3])!;
-    List<long> splitStart = (startValue == "-" ? "0-0" : startValue).Split("-").Select(long.Parse).ToList();
-    List<long> splitEnd = [long.MaxValue, long.MaxValue];
 
     if (Cache.TryGetValue(key, out var cacheValue) && cacheValue != null && cacheValue.TryGetStream(out var entries) && entries.Count > 0)
     {
-      foreach (var entry in entries)
-      {
-        var splitId = entry.Id.Split("-").Select(long.Parse).ToList();
-
-        if (splitId[0] < splitStart[0])
-          continue;
-
-        if (splitId[0] > splitEnd[0])
-          continue;
-
-        if (splitId[0] == splitStart[0] && splitId[1] < splitStart[1])
-          continue;
-
-        if (splitId[0] == splitEnd[0] && splitId[1] > splitEnd[1])
-          continue;
-
-        result.Add(entry);
-      }
-
+      var result = StreamRangeHelper.FilterEntries(entries, startValue, "+");
       return CommandHepler.FormatValue(CacheValue.Stream(key, result));
     }
 

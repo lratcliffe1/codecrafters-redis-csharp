@@ -78,11 +78,6 @@ public static class CommandHepler
     return FormatArrayOfResp([streamResp]);
   }
 
-  public static string FormatValue(IReadOnlyList<StreamEntry> streamValue)
-  {
-    return FormatStreamEntries(streamValue);
-  }
-
   public static string FormatValue(CacheValue value)
   {
     switch (value.Type)

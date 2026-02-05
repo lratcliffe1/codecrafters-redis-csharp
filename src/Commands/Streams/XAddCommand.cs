@@ -53,14 +53,14 @@ public static class XAddCommand
     if (string.IsNullOrEmpty(key))
     {
       idToken = string.Empty;
-      error = CommandHepler.BuildError("invalid of key for 'xadd'");
+      error = CommandHepler.BuildError("invalid key for 'xadd'");
       return false;
     }
 
     idToken = CommandHepler.ReadBulkOrSimple(args[2]) ?? string.Empty;
     if (string.IsNullOrEmpty(idToken))
     {
-      error = CommandHepler.BuildError("invalid of key for 'xadd'");
+      error = CommandHepler.BuildError("invalid id for 'xadd'");
       return false;
     }
 
