@@ -13,12 +13,7 @@ public static class TypeCommand
       return CommandHepler.BuildError("wrong number of arguments for 'type'");
     }
 
-    string? key = CommandHepler.ReadBulkOrSimple(args[1]);
-
-    if (string.IsNullOrEmpty(key))
-    {
-      return CommandHepler.BuildError("invalid key for 'type'");
-    }
+    string key = args[1].ToString();
 
     if (!Cache.TryGetValue(key, out CacheValue? val) || val == null)
     {

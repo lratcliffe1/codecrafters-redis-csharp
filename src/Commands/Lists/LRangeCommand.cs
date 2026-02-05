@@ -13,17 +13,13 @@ public static class LRangeCommand
       return CommandHepler.BuildError("wrong number of arguments for 'lrange'");
     }
 
-    string? key = CommandHepler.ReadBulkOrSimple(args[1]);
+    string key = args[1].ToString();
 
-    if (string.IsNullOrEmpty(key))
-    {
-      return CommandHepler.BuildError("invalid key for 'lrange'");
-    }
-    if (!int.TryParse(CommandHepler.ReadBulkOrSimple(args[2]), out int start))
+    if (!int.TryParse(args[2].ToString(), out int start))
     {
       return CommandHepler.BuildError("invalid start range for 'lrange'");
     }
-    if (!int.TryParse(CommandHepler.ReadBulkOrSimple(args[3]), out int stop))
+    if (!int.TryParse(args[3].ToString(), out int stop))
     {
       return CommandHepler.BuildError("invalid value for 'lrange'");
     }

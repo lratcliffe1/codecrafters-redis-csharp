@@ -13,16 +13,11 @@ public static class GetCommand
       return CommandHepler.BuildError("wrong number of arguments for 'get'");
     }
 
-    string? key = CommandHepler.ReadBulkOrSimple(args[1]);
-
-    if (string.IsNullOrEmpty(key))
-    {
-      return CommandHepler.BuildError("invalid key for 'get'");
-    }
+    string key = args[1].ToString();
 
     if (!Cache.TryGetValue(key, out CacheValue? val) || val == null)
     {
-      return "$-1\r\n";
+      return CommandHepler.FormatNull(RespType.SimpleString);
     }
 
     return CommandHepler.FormatValue(val);

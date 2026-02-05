@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace codecrafters_redis.src.Resp;
 
 public enum RespType
@@ -34,11 +36,11 @@ public class RespValue
   {
     return Type switch
     {
-      RespType.SimpleString => $"+{StringValue}",
-      RespType.Error => $"-{StringValue}",
-      RespType.Integer => $":{IntegerValue}",
-      RespType.BulkString => StringValue == null ? "$-1" : $"${StringValue.Length}:{StringValue}",
-      RespType.Array => ArrayValue == null ? "*-1" : $"*{ArrayValue.Count}",
+      RespType.SimpleString => StringValue ?? string.Empty,
+      RespType.Error => StringValue ?? string.Empty,
+      RespType.Integer => IntegerValue?.ToString(CultureInfo.InvariantCulture) ?? string.Empty,
+      RespType.BulkString => StringValue ?? string.Empty,
+      RespType.Array => string.Empty,
       _ => Type.ToString()
     };
   }

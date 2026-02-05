@@ -9,13 +9,12 @@ public static class PingCommand
   {
     if (args.Count == 1)
     {
-      return "+PONG\r\n";
+      return CommandHepler.FormatSimple("PONG");
     }
 
     if (args.Count == 2)
     {
-      string? payload = CommandHepler.ReadBulkOrSimple(args[1]);
-      return payload == null ? "$-1\r\n" : CommandHepler.FormatBulk(payload);
+      return CommandHepler.FormatBulk(args[1].ToString());
     }
 
     return CommandHepler.BuildError("wrong number of arguments for 'ping'");

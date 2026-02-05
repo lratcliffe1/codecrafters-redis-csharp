@@ -17,12 +17,7 @@ static class RespExecutor
     }
 
     List<RespValue> args = value.ArrayValue;
-    string command = ReadCommandName(args[0]);
-
-    if (string.IsNullOrEmpty(command))
-    {
-      return CommandHepler.BuildError("invalid command");
-    }
+    string command = args[0].ToString();
 
     command = command.ToUpperInvariant();
 
@@ -42,28 +37,7 @@ static class RespExecutor
       "XADD" => XAddCommand.Process(args),
       "XRANGE" => XRangeCommand.Process(args),
       "XREAD" => XReadCommand.Process(args),
-      _ => CommandHepler.BuildError("unknown command"),
+      _ => CommandHepler.BuildError($"unknown command: {command}"),
     };
-  }
-
-  static string ReadCommandName(RespValue value)
-  {
-    string? payload = ReadBulkOrSimple(value);
-    return payload ?? string.Empty;
-  }
-
-  static string? ReadBulkOrSimple(RespValue value)
-  {
-    if (value.Type == RespType.BulkString)
-    {
-      return value.StringValue;
-    }
-
-    if (value.Type == RespType.SimpleString)
-    {
-      return value.StringValue;
-    }
-
-    return null;
   }
 }

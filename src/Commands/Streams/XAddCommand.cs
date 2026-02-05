@@ -13,9 +13,17 @@ public static class XAddCommand
       return CommandHepler.BuildError("wrong number of arguments for 'xadd'");
     }
 
-    if (!TryReadKeyAndId(args, out var key, out var idToken, out var error))
+    var key = args[1].ToString();
+    var idToken = args[2].ToString();
+
+    if (idToken == "0-0")
     {
-      return error;
+      return CommandHepler.BuildError("The ID specified in XADD must be greater than 0-0");
+    }
+
+    if (idToken == "*")
+    {
+      idToken = "*-*";
     }
 
     List<StreamEntry> entries = [];
@@ -30,7 +38,7 @@ public static class XAddCommand
       }
     }
 
-    if (!TryResolveEntryId(idToken, lastEntryIdParts, out var entryId, out error))
+    if (!TryResolveEntryId(idToken, lastEntryIdParts, out var entryId, out var error))
     {
       return error;
     }
@@ -45,38 +53,6 @@ public static class XAddCommand
   private static bool HasValidArgs(List<RespValue> args)
   {
     return args.Count >= 5 && args.Count % 2 == 1;
-  }
-
-  private static bool TryReadKeyAndId(List<RespValue> args, out string key, out string idToken, out string error)
-  {
-    key = CommandHepler.ReadBulkOrSimple(args[1]) ?? string.Empty;
-    if (string.IsNullOrEmpty(key))
-    {
-      idToken = string.Empty;
-      error = CommandHepler.BuildError("invalid key for 'xadd'");
-      return false;
-    }
-
-    idToken = CommandHepler.ReadBulkOrSimple(args[2]) ?? string.Empty;
-    if (string.IsNullOrEmpty(idToken))
-    {
-      error = CommandHepler.BuildError("invalid id for 'xadd'");
-      return false;
-    }
-
-    if (idToken == "0-0")
-    {
-      error = CommandHepler.BuildError("The ID specified in XADD must be greater than 0-0");
-      return false;
-    }
-
-    if (idToken == "*")
-    {
-      idToken = "*-*";
-    }
-
-    error = string.Empty;
-    return true;
   }
 
   private static bool TryResolveEntryId(string idToken, List<long>? lastEntryIdParts, out string entryId, out string error)
@@ -108,8 +84,8 @@ public static class XAddCommand
     Dictionary<string, string> fields = [];
     for (var i = 3; i < args.Count; i += 2)
     {
-      var field = CommandHepler.ReadBulkOrSimple(args[i]) ?? string.Empty;
-      var value = CommandHepler.ReadBulkOrSimple(args[i + 1]) ?? string.Empty;
+      var field = args[i].ToString();
+      var value = args[i + 1].ToString();
       fields.Add(field, value);
     }
 

@@ -18,14 +18,9 @@ public static class LPopCommand
       return CommandHepler.BuildError("wrong number of arguments for 'lpop'");
     }
 
-    string? key = CommandHepler.ReadBulkOrSimple(args[1]);
+    string key = args[1].ToString();
+    string popCountRaw = args[2].ToString();
 
-    if (string.IsNullOrEmpty(key))
-    {
-      return CommandHepler.BuildError("invalid key for 'lpop'");
-    }
-
-    string? popCountRaw = CommandHepler.ReadBulkOrSimple(args[2]);
     if (!int.TryParse(popCountRaw, out int popCount))
     {
       return CommandHepler.BuildError("invalid count for 'lpop'");
@@ -35,7 +30,7 @@ public static class LPopCommand
 
     if (removed == null)
     {
-      return "$-1\r\n";
+      return CommandHepler.FormatNull(RespType.BulkString);
     }
     if (removed.Count == 1)
     {

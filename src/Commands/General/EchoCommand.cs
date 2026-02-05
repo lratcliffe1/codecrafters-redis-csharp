@@ -12,7 +12,6 @@ public static class EchoCommand
       return CommandHepler.BuildError("wrong number of arguments for 'echo'");
     }
 
-    string? payload = CommandHepler.ReadBulkOrSimple(args[1]);
-    return payload == null ? "$-1\r\n" : CommandHepler.FormatBulk(payload);
+    return CommandHepler.FormatBulk(args[1].ToString());
   }
 }

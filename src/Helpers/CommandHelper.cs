@@ -7,19 +7,19 @@ namespace codecrafters_redis.src.Helpers;
 
 public static class CommandHepler
 {
-  public static string? ReadBulkOrSimple(RespValue value)
+  public static string FormatSimple(string value)
   {
-    if (value.Type == RespType.BulkString)
-    {
-      return value.StringValue;
-    }
+    return $"+{value}\r\n";
+  }
 
-    if (value.Type == RespType.SimpleString)
-    {
-      return value.StringValue;
-    }
+  public static string BuildError(string value)
+  {
+    return $"-ERR {value}\r\n";
+  }
 
-    return null;
+  public static string FormatInteger(int value)
+  {
+    return $":{value}\r\n";
   }
 
   public static string FormatBulk(string value)
@@ -27,9 +27,14 @@ public static class CommandHepler
     return $"${value.Length}\r\n{value}\r\n";
   }
 
-  public static string FormatSimple(string value)
+  public static string FormatNull(RespType respType)
   {
-    return $"+{value}\r\n";
+    return respType switch
+    {
+      RespType.Integer => ":-1\r\n",
+      RespType.Array => "*-1\r\n",
+      _ => "$-1\r\n",
+    };
   }
 
   public static string FormatArray(IReadOnlyList<string> values)
@@ -156,10 +161,5 @@ public static class CommandHepler
     }
 
     return "$-1\r\n";
-  }
-
-  public static string BuildError(string value)
-  {
-    return $"-ERR {value}\r\n";
   }
 }

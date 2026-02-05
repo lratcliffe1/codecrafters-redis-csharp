@@ -20,20 +20,11 @@ public static class PushCommand
       return CommandHepler.BuildError($"wrong number of arguments for '{commandName}'");
     }
 
-    string? key = CommandHepler.ReadBulkOrSimple(args[1]);
-    string? val = CommandHepler.ReadBulkOrSimple(args[2]);
-
-    if (string.IsNullOrEmpty(key))
-    {
-      return CommandHepler.BuildError($"invalid key for '{commandName}'");
-    }
-    if (string.IsNullOrEmpty(val))
-    {
-      return CommandHepler.BuildError($"invalid value for '{commandName}'");
-    }
+    string? key = args[1].ToString();
+    string? val = args[2].ToString();
 
     List<string> vals = args[2..]
-      .Select(CommandHepler.ReadBulkOrSimple)
+      .Select(value => value.ToString())
       .Where(value => !string.IsNullOrEmpty(value))
       .Select(value => value!)
       .ToList();
@@ -42,6 +33,6 @@ public static class PushCommand
       ? Cache.Prepend(key, vals)
       : Cache.Append(key, vals);
 
-    return $":{count}\r\n";
+    return CommandHepler.FormatInteger(count);
   }
 }

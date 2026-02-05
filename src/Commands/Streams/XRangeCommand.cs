@@ -13,15 +13,10 @@ public static class XRangeCommand
       return CommandHepler.BuildError("wrong number of arguments for 'xrange'");
     }
 
-    string? key = CommandHepler.ReadBulkOrSimple(args[1]);
+    string key = args[1].ToString();
+    string startValue = args[2].ToString();
+    string endValue = args[3].ToString();
 
-    if (string.IsNullOrEmpty(key))
-    {
-      return CommandHepler.BuildError("invalid key for 'xrange'");
-    }
-
-    string startValue = CommandHepler.ReadBulkOrSimple(args[2])!;
-    string endValue = CommandHepler.ReadBulkOrSimple(args[3])!;
     List<StreamEntry> result = [];
 
     if (Cache.TryGetValue(key, out var cacheValue) && cacheValue != null && cacheValue.TryGetStream(out var entries) && entries.Count > 0)

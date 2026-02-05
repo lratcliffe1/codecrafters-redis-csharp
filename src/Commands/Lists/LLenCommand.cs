@@ -13,15 +13,10 @@ public static class LLenCommand
       return CommandHepler.BuildError("wrong number of arguments for 'llen'");
     }
 
-    string? key = CommandHepler.ReadBulkOrSimple(args[1]);
-
-    if (string.IsNullOrEmpty(key))
-    {
-      return CommandHepler.BuildError("invalid key for 'llen'");
-    }
+    string key = args[1].ToString();
 
     int count = Cache.GetLLen(key);
 
-    return $":{count}\r\n";
+    return CommandHepler.FormatInteger(count);
   }
 }

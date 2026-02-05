@@ -18,7 +18,7 @@ public static class XReadCommand
 
     for (int i = 0; i < streamCount; i++)
     {
-      streams.Add((CommandHepler.ReadBulkOrSimple(args[2 + i])!, CommandHepler.ReadBulkOrSimple(args[2 + streamCount + i])!));
+      streams.Add((args[2 + i].ToString(), args[2 + streamCount + i].ToString()));
     }
 
     List<string> streamResponses = [];
@@ -39,7 +39,7 @@ public static class XReadCommand
 
     if (streamResponses.Count == 0)
     {
-      return "*-1\r\n";
+      return CommandHepler.FormatNull(RespType.Array);
     }
 
     return CommandHepler.FormatArrayOfResp(streamResponses);
