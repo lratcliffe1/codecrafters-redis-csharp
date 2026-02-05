@@ -8,26 +8,40 @@ public static class XReadCommand
 {
   public static string Process(List<RespValue> args)
   {
-    if (args.Count != 4)
+    if (args.Count < 4 || args.Count % 2 != 0)
     {
       return CommandHepler.BuildError("wrong number of arguments for 'xread'");
     }
 
-    string? key = CommandHepler.ReadBulkOrSimple(args[2]);
+    int streamCount = (args.Count - 2) / 2;
+    List<(string key, string id)> streams = [];
 
-    if (string.IsNullOrEmpty(key))
+    for (int i = 0; i < streamCount; i++)
     {
-      return CommandHepler.BuildError("invalid key for 'xread'");
+      streams.Add((CommandHepler.ReadBulkOrSimple(args[2 + i])!, CommandHepler.ReadBulkOrSimple(args[2 + streamCount + i])!));
     }
 
-    string startValue = CommandHepler.ReadBulkOrSimple(args[3])!;
+    List<string> streamResponses = [];
 
-    if (Cache.TryGetValue(key, out var cacheValue) && cacheValue != null && cacheValue.TryGetStream(out var entries) && entries.Count > 0)
+    foreach (var stream in streams)
     {
-      var result = StreamRangeHelper.FilterEntries(entries, startValue, "+");
-      return CommandHepler.FormatValue(CacheValue.Stream(key, result));
+      if (Cache.TryGetValue(stream.key, out var cacheValue) && cacheValue != null && cacheValue.TryGetStream(out var entries) && entries.Count > 0)
+      {
+        var result = StreamRangeHelper.FilterEntries(entries, stream.id, "+");
+        if (result.Count > 0)
+        {
+          string entriesResp = CommandHepler.FormatStreamEntries(result);
+          string streamResp = CommandHepler.FormatArrayOfResp([CommandHepler.FormatBulk(stream.key), entriesResp]);
+          streamResponses.Add(streamResp);
+        }
+      }
     }
 
-    return "*-1\r\n";
+    if (streamResponses.Count == 0)
+    {
+      return "*-1\r\n";
+    }
+
+    return CommandHepler.FormatArrayOfResp(streamResponses);
   }
 }
