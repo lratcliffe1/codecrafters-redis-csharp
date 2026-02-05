@@ -10,6 +10,7 @@ public enum CacheValueType
   Hash = 5,
   Stream = 6,
   VectorSet = 7,
+  StreamEntries = 8,
 }
 
 public sealed record CacheValue(CacheValueType Type, object Value)
@@ -24,7 +25,11 @@ public sealed record CacheValue(CacheValueType Type, object Value)
 
   public static CacheValue Hash(Dictionary<string, string> value) => new(CacheValueType.Hash, value);
 
-  public static CacheValue Stream(List<StreamEntry> value) => new(CacheValueType.Stream, value);
+  public static CacheValue Stream(string key, List<StreamEntry> value)
+    => new(CacheValueType.Stream, new StreamReadResult(key, value));
+
+  public static CacheValue StreamEntries(List<StreamEntry> value)
+    => new(CacheValueType.StreamEntries, value);
 
   public static CacheValue VectorSet(List<VectorSetEntry> value) => new(CacheValueType.VectorSet, value);
 
@@ -90,13 +95,25 @@ public sealed record CacheValue(CacheValueType Type, object Value)
 
   public bool TryGetStream(out List<StreamEntry> value)
   {
-    if (Type == CacheValueType.Stream && Value is List<StreamEntry> streamValue)
+    if (Type == CacheValueType.StreamEntries && Value is List<StreamEntry> streamValue)
     {
       value = streamValue;
       return true;
     }
 
     value = [];
+    return false;
+  }
+
+  public bool TryGetStreamReadResult(out StreamReadResult value)
+  {
+    if (Type == CacheValueType.Stream && Value is StreamReadResult streamValue)
+    {
+      value = streamValue;
+      return true;
+    }
+
+    value = new StreamReadResult(string.Empty, []);
     return false;
   }
 
@@ -116,5 +133,7 @@ public sealed record CacheValue(CacheValueType Type, object Value)
 public sealed record ZSetEntry(string Member, double Score);
 
 public sealed record StreamEntry(string Id, Dictionary<string, string> Fields);
+
+public sealed record StreamReadResult(string Key, List<StreamEntry> Entries);
 
 public sealed record VectorSetEntry(string Member, IReadOnlyList<float> Vector);

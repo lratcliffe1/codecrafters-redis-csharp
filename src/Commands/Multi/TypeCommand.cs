@@ -33,6 +33,7 @@ public static class TypeCommand
       CacheValueType.ZSet => "zset",
       CacheValueType.Hash => "hash",
       CacheValueType.Stream => "stream",
+      CacheValueType.StreamEntries => "stream",
       CacheValueType.VectorSet => "vectorset",
       _ => "none",
     };

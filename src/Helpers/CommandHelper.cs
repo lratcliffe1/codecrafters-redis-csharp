@@ -71,6 +71,13 @@ public static class CommandHepler
     return FormatArrayOfResp(entries);
   }
 
+  public static string FormatStreamReadResult(string key, IReadOnlyList<StreamEntry> streamValue)
+  {
+    string entriesResp = FormatStreamEntries(streamValue);
+    string streamResp = FormatArrayOfResp([FormatBulk(key), entriesResp]);
+    return FormatArrayOfResp([streamResp]);
+  }
+
   public static string FormatValue(IReadOnlyList<StreamEntry> streamValue)
   {
     return FormatStreamEntries(streamValue);
@@ -123,9 +130,15 @@ public static class CommandHepler
         }
         break;
       case CacheValueType.Stream:
-        if (value.TryGetStream(out List<StreamEntry> streamValue))
+        if (value.TryGetStreamReadResult(out StreamReadResult streamValue))
         {
-          return FormatStreamEntries(streamValue);
+          return FormatStreamReadResult(streamValue.Key, streamValue.Entries);
+        }
+        break;
+      case CacheValueType.StreamEntries:
+        if (value.TryGetStream(out List<StreamEntry> streamEntriesValue))
+        {
+          return FormatStreamEntries(streamEntriesValue);
         }
         break;
       case CacheValueType.VectorSet:

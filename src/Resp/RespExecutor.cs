@@ -41,6 +41,7 @@ static class RespExecutor
       "TYPE" => TypeCommand.Process(args),
       "XADD" => XAddCommand.Process(args),
       "XRANGE" => XRangeCommand.Process(args),
+      "XREAD" => XReadCommand.Process(args),
       _ => CommandHepler.BuildError("unknown command'"),
     };
   }

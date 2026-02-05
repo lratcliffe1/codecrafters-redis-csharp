@@ -37,7 +37,7 @@ public static class XAddCommand
 
     var fields = ReadFields(args);
     entries.Add(new StreamEntry(entryId, fields));
-    Cache.Set(key, CacheValue.Stream(entries));
+    Cache.Set(key, CacheValue.StreamEntries(entries));
 
     return CommandHepler.FormatBulk(entryId);
   }
