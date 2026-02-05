@@ -1,4 +1,8 @@
-using codecrafters_redis.src.Commands;
+using codecrafters_redis.src.Commands.General;
+using codecrafters_redis.src.Commands.Lists;
+using codecrafters_redis.src.Commands.Multi;
+using codecrafters_redis.src.Commands.Streams;
+using codecrafters_redis.src.Commands.Strings;
 using codecrafters_redis.src.Helpers;
 
 namespace codecrafters_redis.src.Resp;

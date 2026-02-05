@@ -1,4 +1,4 @@
-namespace codecrafters_redis.src.Commands;
+namespace codecrafters_redis.src.Commands.Lists;
 
 using codecrafters_redis.src.Cache;
 using codecrafters_redis.src.Helpers;

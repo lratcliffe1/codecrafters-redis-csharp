@@ -1,4 +1,4 @@
-namespace codecrafters_redis.src.Commands;
+namespace codecrafters_redis.src.Commands.General;
 
 using codecrafters_redis.src.Helpers;
 using codecrafters_redis.src.Resp;
