@@ -1,54 +1,34 @@
 using Microsoft.Extensions.Caching.Memory;
 using codecrafters_redis.src.Helpers;
+using codecrafters_redis.src.Resp;
 
 namespace codecrafters_redis.src.Cache;
 
 public class Cache
 {
+  // Contract: all cache and waiter state is owned by the command event-loop lane.
   private static readonly MemoryCache _memoryCache = new MemoryCache(new MemoryCacheOptions());
 
-  private static readonly Dictionary<string, List<ManualResetEventSlim>> _events = [];
+  private static readonly Dictionary<string, List<ListWaiter>> _listWaitersByKey = [];
   private static readonly Dictionary<string, List<StreamWaiter>> _streamWaitersByKey = [];
 
   public static void Set(string key, CacheValue value)
   {
-    _memoryCache.Remove(key);
+    EnsureLoopOwner();
     _memoryCache.Set(key, value);
-
-    if (value.Type == CacheValueType.List)
-    {
-      UpdateBlockingEvents(key);
-    }
-
-    if (value.Type == CacheValueType.StreamEntries)
-    {
-      if (value.TryGetStream(out var entries) && entries.Count > 0)
-      {
-        NotifyStreamEntryAdded(key, entries.Last().Id);
-      }
-    }
+    HandlePostSetEffects(key, value);
   }
 
   public static void Set(string key, CacheValue value, int expirationMilliseconds)
   {
+    EnsureLoopOwner();
     _memoryCache.Set(key, value, TimeSpan.FromMilliseconds(expirationMilliseconds));
-
-    if (value.Type == CacheValueType.List)
-    {
-      UpdateBlockingEvents(key);
-    }
-
-    if (value.Type == CacheValueType.StreamEntries)
-    {
-      if (value.TryGetStream(out var entries) && entries.Count > 0)
-      {
-        NotifyStreamEntryAdded(key, entries.Last().Id);
-      }
-    }
+    HandlePostSetEffects(key, value);
   }
 
   public static int Append(string key, List<string> values)
   {
+    EnsureLoopOwner();
     if (TryGetListValue(key, out List<string> existingValues))
     {
       existingValues.AddRange(values);
@@ -64,6 +44,7 @@ public class Cache
 
   public static int Prepend(string key, List<string> values)
   {
+    EnsureLoopOwner();
     values.Reverse();
 
     if (TryGetListValue(key, out List<string> existingValues))
@@ -82,6 +63,7 @@ public class Cache
 
   public static bool TryGetValue(string key, out CacheValue? value)
   {
+    EnsureLoopOwner();
     if (_memoryCache.TryGetValue(key, out CacheValue? cachedValue) && cachedValue != null)
     {
       value = cachedValue;
@@ -92,54 +74,9 @@ public class Cache
     return false;
   }
 
-  public static bool WaitForStreamEntries(IReadOnlyList<(string key, string id)> streams, double expirationMilliseconds)
-  {
-    if (streams.Count == 0)
-    {
-      return false;
-    }
-
-    StreamWaiter waiter = new(streams);
-    RegisterStreamWaiter(waiter);
-
-    try
-    {
-      if (expirationMilliseconds == 0)
-      {
-        waiter.Signal.Wait();
-        return true;
-      }
-
-      return waiter.Signal.Wait(TimeSpan.FromMilliseconds(expirationMilliseconds));
-    }
-    finally
-    {
-      UnregisterStreamWaiter(waiter);
-      waiter.Signal.Dispose();
-    }
-  }
-
-  public static void NotifyStreamEntryAdded(string key, string entryId)
-  {
-    lock (_streamWaitersByKey)
-    {
-      if (!_streamWaitersByKey.TryGetValue(key, out var waiters))
-      {
-        return;
-      }
-
-      foreach (var waiter in waiters)
-      {
-        if (waiter.TryGetLastSeenId(key, out string lastSeenId) && StreamIdHelper.IsGreaterThan(entryId, lastSeenId))
-        {
-          waiter.Signal.Set();
-        }
-      }
-    }
-  }
-
   public static List<string> GetLRange(string key, int start, int stop)
   {
+    EnsureLoopOwner();
     if (!TryGetListValue(key, out List<string> existingValues))
       return [];
 
@@ -167,6 +104,7 @@ public class Cache
 
   public static int GetLLen(string key)
   {
+    EnsureLoopOwner();
     if (TryGetListValue(key, out List<string> existingValues))
     {
       return existingValues.Count;
@@ -177,12 +115,14 @@ public class Cache
 
   public static List<string>? LPop(string key, int popCount)
   {
+    EnsureLoopOwner();
     if (TryGetListValue(key, out List<string> existingValues))
     {
       if (existingValues.Count > 0)
       {
-        List<string> value = existingValues[0..popCount];
-        existingValues.RemoveRange(0, popCount);
+        int countToPop = Math.Min(popCount, existingValues.Count);
+        List<string> value = existingValues[0..countToPop];
+        existingValues.RemoveRange(0, countToPop);
         return value;
       }
     }
@@ -190,59 +130,69 @@ public class Cache
     return null;
   }
 
-  public static List<string>? BLPop(string key, double expiration)
+  public static async Task<bool> WaitForListEntriesAsync(
+    string key,
+    double expirationSeconds,
+    CancellationToken cancellationToken = default)
   {
-    var result = LPop(key, 1);
-    if (result != null)
-      return result;
-
-    var newEvent = new ManualResetEventSlim(false);
+    EnsureLoopOwner();
+    var waiter = new ListWaiter();
+    RegisterBlockingEvent(key, waiter);
 
     try
     {
-      lock (_events)
-      {
-        if (_events.TryGetValue(key, out var blockingEvents))
-        {
-          blockingEvents.Add(newEvent);
-        }
-        else
-        {
-          _events.Add(key, [newEvent]);
-        }
-      }
-
-      if (expiration == 0)
-      {
-        newEvent.Wait();
-      }
-      else
-      {
-        newEvent.Wait((int)(expiration * 1000));
-      }
-
-      return LPop(key, 1);
+      return await WaitForSignalAsync(waiter.Signal.Task, expirationSeconds * 1000, cancellationToken);
     }
     finally
     {
-      lock (_events)
-      {
-        if (_events.TryGetValue(key, out var blockingEvents))
-        {
-          blockingEvents.Remove(newEvent);
-          if (blockingEvents.Count == 0)
-          {
-            _events.Remove(key);
-          }
-        }
-      }
+      UnregisterBlockingEvent(key, waiter);
+    }
+  }
 
-      newEvent.Dispose();
+  public static async Task<bool> WaitForStreamEntriesAsync(
+    IReadOnlyList<(string key, string id)> streams,
+    double expirationMilliseconds,
+    CancellationToken cancellationToken = default)
+  {
+    EnsureLoopOwner();
+    if (streams.Count == 0)
+    {
+      return false;
+    }
+
+    StreamWaiter waiter = new(streams);
+    RegisterStreamWaiter(waiter);
+
+    try
+    {
+      return await WaitForSignalAsync(waiter.Signal.Task, expirationMilliseconds, cancellationToken);
+    }
+    finally
+    {
+      UnregisterStreamWaiter(waiter);
+    }
+  }
+
+  public static void NotifyStreamEntryAdded(string key, string entryId)
+  {
+    EnsureLoopOwner();
+    if (!_streamWaitersByKey.TryGetValue(key, out var waiters))
+    {
+      return;
+    }
+
+    foreach (var waiter in waiters.ToList())
+    {
+      if (waiter.TryGetLastSeenId(key, out string lastSeenId) && StreamIdHelper.IsGreaterThan(entryId, lastSeenId))
+      {
+        waiter.Signal.TrySetResult(true);
+      }
     }
   }
 
   private static bool TryGetListValue(string key, out List<string> values)
   {
+    EnsureLoopOwner();
     values = [];
     if (_memoryCache.TryGetValue(key, out CacheValue? cachedValue) && cachedValue != null)
     {
@@ -252,61 +202,135 @@ public class Cache
     return false;
   }
 
+  private static void HandlePostSetEffects(string key, CacheValue value)
+  {
+    EnsureLoopOwner();
+    if (value.Type == CacheValueType.List)
+    {
+      UpdateBlockingEvents(key);
+    }
+
+    if (value.Type == CacheValueType.StreamEntries)
+    {
+      if (value.TryGetStream(out var entries) && entries.Count > 0)
+      {
+        NotifyStreamEntryAdded(key, entries.Last().Id);
+      }
+    }
+  }
+
+  private static async Task<bool> WaitForSignalAsync(
+    Task signalTask,
+    double expirationMilliseconds,
+    CancellationToken cancellationToken = default)
+  {
+    EnsureLoopOwner();
+    if (expirationMilliseconds == 0)
+    {
+      await signalTask.WaitAsync(cancellationToken);
+      return true;
+    }
+
+    try
+    {
+      await signalTask.WaitAsync(TimeSpan.FromMilliseconds(expirationMilliseconds), cancellationToken);
+      return true;
+    }
+    catch (TimeoutException)
+    {
+      return false;
+    }
+  }
+
   private static void UpdateBlockingEvents(string key)
   {
-    lock (_events)
+    EnsureLoopOwner();
+    if (!_listWaitersByKey.TryGetValue(key, out var blockingEvents))
     {
-      if (_events.TryGetValue(key, out var blockingEvents) && blockingEvents.Count > 0)
+      return;
+    }
+
+    while (blockingEvents.Count > 0)
+    {
+      ListWaiter nextWaiter = blockingEvents[0];
+      blockingEvents.RemoveAt(0);
+
+      if (blockingEvents.Count == 0)
       {
-        var nextEvent = blockingEvents[0];
-        blockingEvents.RemoveAt(0);
+        _listWaitersByKey.Remove(key);
+      }
 
-        if (blockingEvents.Count == 0)
-        {
-          _events.Remove(key);
-        }
-
-        nextEvent.Set();
+      if (nextWaiter.Signal.TrySetResult(true))
+      {
+        break;
       }
     }
   }
 
   private static void RegisterStreamWaiter(StreamWaiter waiter)
   {
-    lock (_streamWaitersByKey)
+    EnsureLoopOwner();
+    foreach ((string key, _) in waiter.Streams)
     {
-      foreach ((string key, _) in waiter.Streams)
+      if (_streamWaitersByKey.TryGetValue(key, out var waiters))
       {
-        if (_streamWaitersByKey.TryGetValue(key, out var waiters))
-        {
-          waiters.Add(waiter);
-        }
-        else
-        {
-          _streamWaitersByKey.Add(key, [waiter]);
-        }
+        waiters.Add(waiter);
+      }
+      else
+      {
+        _streamWaitersByKey.Add(key, [waiter]);
       }
     }
   }
 
   private static void UnregisterStreamWaiter(StreamWaiter waiter)
   {
-    lock (_streamWaitersByKey)
+    EnsureLoopOwner();
+    foreach ((string key, _) in waiter.Streams)
     {
-      foreach ((string key, _) in waiter.Streams)
+      if (!_streamWaitersByKey.TryGetValue(key, out var waiters))
       {
-        if (!_streamWaitersByKey.TryGetValue(key, out var waiters))
-        {
-          continue;
-        }
+        continue;
+      }
 
-        waiters.Remove(waiter);
-        if (waiters.Count == 0)
-        {
-          _streamWaitersByKey.Remove(key);
-        }
+      waiters.Remove(waiter);
+      if (waiters.Count == 0)
+      {
+        _streamWaitersByKey.Remove(key);
       }
     }
+  }
+
+  private static void RegisterBlockingEvent(string key, ListWaiter waiter)
+  {
+    EnsureLoopOwner();
+    if (_listWaitersByKey.TryGetValue(key, out var blockingEvents))
+    {
+      blockingEvents.Add(waiter);
+      return;
+    }
+
+    _listWaitersByKey.Add(key, [waiter]);
+  }
+
+  private static void UnregisterBlockingEvent(string key, ListWaiter waiter)
+  {
+    EnsureLoopOwner();
+    if (!_listWaitersByKey.TryGetValue(key, out var blockingEvents))
+    {
+      return;
+    }
+
+    blockingEvents.Remove(waiter);
+    if (blockingEvents.Count == 0)
+    {
+      _listWaitersByKey.Remove(key);
+    }
+  }
+
+  private sealed class ListWaiter
+  {
+    public TaskCompletionSource<bool> Signal { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
   }
 
   private sealed class StreamWaiter
@@ -316,12 +340,12 @@ public class Cache
     public StreamWaiter(IReadOnlyList<(string key, string id)> streams)
     {
       Streams = streams;
-      Signal = new ManualResetEventSlim(false);
+      Signal = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
       _lastSeenIds = streams.ToDictionary(stream => stream.key, stream => stream.id);
     }
 
     public IReadOnlyList<(string key, string id)> Streams { get; }
-    public ManualResetEventSlim Signal { get; }
+    public TaskCompletionSource<bool> Signal { get; }
 
     public bool TryGetLastSeenId(string key, out string lastSeenId)
     {
@@ -333,6 +357,14 @@ public class Cache
 
       lastSeenId = string.Empty;
       return false;
+    }
+  }
+
+  private static void EnsureLoopOwner()
+  {
+    if (!LoopOwnerContext.IsOnOwnerLane)
+    {
+      throw new InvalidOperationException("Cache access must execute on the command event-loop owner lane.");
     }
   }
 }

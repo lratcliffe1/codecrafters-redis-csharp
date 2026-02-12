@@ -6,7 +6,7 @@ using codecrafters_redis.src.Resp;
 
 public static class LPopCommand
 {
-  public static string Process(List<RespValue> args)
+  public static Task<string> ProcessAsync(List<RespValue> args)
   {
     if (args.Count == 2)
     {
@@ -15,7 +15,7 @@ public static class LPopCommand
 
     if (args.Count != 3)
     {
-      return CommandHepler.BuildError("wrong number of arguments for 'lpop'");
+      return CommandHepler.BuildErrorAsync("wrong number of arguments for 'lpop'");
     }
 
     string key = args[1].ToString();
@@ -23,20 +23,20 @@ public static class LPopCommand
 
     if (!int.TryParse(popCountRaw, out int popCount))
     {
-      return CommandHepler.BuildError("invalid count for 'lpop'");
+      return CommandHepler.BuildErrorAsync("invalid count for 'lpop'");
     }
 
     List<string>? removed = Cache.LPop(key, popCount);
 
     if (removed == null)
     {
-      return CommandHepler.FormatNull(RespType.BulkString);
+      return CommandHepler.FormatNullAsync(RespType.BulkString);
     }
     if (removed.Count == 1)
     {
-      return CommandHepler.FormatBulk(removed[0]);
+      return CommandHepler.FormatBulkAsync(removed[0]);
     }
 
-    return CommandHepler.FormatArray(removed);
+    return CommandHepler.FormatArrayAsync(removed);
   }
 }

@@ -6,18 +6,18 @@ using codecrafters_redis.src.Resp;
 
 public static class TypeCommand
 {
-  public static string Process(List<RespValue> args)
+  public static Task<string> ProcessAsync(List<RespValue> args)
   {
     if (args.Count != 2)
     {
-      return CommandHepler.BuildError("wrong number of arguments for 'type'");
+      return CommandHepler.BuildErrorAsync("wrong number of arguments for 'type'");
     }
 
     string key = args[1].ToString();
 
     if (!Cache.TryGetValue(key, out CacheValue? val) || val == null)
     {
-      return CommandHepler.FormatSimple("none");
+      return CommandHepler.FormatSimpleAsync("none");
     }
 
     string type = val.Type switch
@@ -33,6 +33,6 @@ public static class TypeCommand
       _ => "none",
     };
 
-    return CommandHepler.FormatSimple(type);
+    return CommandHepler.FormatSimpleAsync(type);
   }
 }

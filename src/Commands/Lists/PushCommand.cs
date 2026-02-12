@@ -13,11 +13,11 @@ public enum PushDirection
 
 public static class PushCommand
 {
-  public static string Process(List<RespValue> args, PushDirection direction, string commandName)
+  public static Task<string> ProcessAsync(List<RespValue> args, PushDirection direction, string commandName)
   {
     if (args.Count < 3)
     {
-      return CommandHepler.BuildError($"wrong number of arguments for '{commandName}'");
+      return CommandHepler.BuildErrorAsync($"wrong number of arguments for '{commandName}'");
     }
 
     string? key = args[1].ToString();
@@ -33,6 +33,6 @@ public static class PushCommand
       ? Cache.Prepend(key, vals)
       : Cache.Append(key, vals);
 
-    return CommandHepler.FormatInteger(count);
+    return CommandHepler.FormatIntegerAsync(count);
   }
 }

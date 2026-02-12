@@ -6,11 +6,11 @@ using codecrafters_redis.src.Resp;
 
 public static class XAddCommand
 {
-  public static string Process(List<RespValue> args)
+  public static Task<string> ProcessAsync(List<RespValue> args)
   {
     if (!HasValidArgs(args))
     {
-      return CommandHepler.BuildError("wrong number of arguments for 'xadd'");
+      return CommandHepler.BuildErrorAsync("wrong number of arguments for 'xadd'");
     }
 
     var key = args[1].ToString();
@@ -18,7 +18,7 @@ public static class XAddCommand
 
     if (idToken == "0-0")
     {
-      return CommandHepler.BuildError("The ID specified in XADD must be greater than 0-0");
+      return CommandHepler.BuildErrorAsync("The ID specified in XADD must be greater than 0-0");
     }
 
     if (idToken == "*")
@@ -40,14 +40,14 @@ public static class XAddCommand
 
     if (!TryResolveEntryId(idToken, lastEntryIdParts, out var entryId, out var error))
     {
-      return error;
+      return Task.FromResult(error);
     }
 
     var fields = ReadFields(args);
     entries.Add(new StreamEntry(entryId, fields));
     Cache.Set(key, CacheValue.StreamEntries(entries));
 
-    return CommandHepler.FormatBulk(entryId);
+    return CommandHepler.FormatBulkAsync(entryId);
   }
 
   private static bool HasValidArgs(List<RespValue> args)

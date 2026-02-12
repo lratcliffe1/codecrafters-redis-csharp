@@ -6,11 +6,11 @@ using codecrafters_redis.src.Resp;
 
 public static class XRangeCommand
 {
-  public static string Process(List<RespValue> args)
+  public static Task<string> ProcessAsync(List<RespValue> args)
   {
     if (args.Count != 4)
     {
-      return CommandHepler.BuildError("wrong number of arguments for 'xrange'");
+      return CommandHepler.BuildErrorAsync("wrong number of arguments for 'xrange'");
     }
 
     string key = args[1].ToString();
@@ -24,6 +24,6 @@ public static class XRangeCommand
       result = StreamRangeHelper.FilterEntries(entries, startValue, endValue);
     }
 
-    return CommandHepler.FormatStreamEntries(result);
+    return CommandHepler.FormatStreamEntriesAsync(result);
   }
 }

@@ -6,17 +6,17 @@ using codecrafters_redis.src.Resp;
 
 public static class LLenCommand
 {
-  public static string Process(List<RespValue> args)
+  public static Task<string> ProcessAsync(List<RespValue> args)
   {
     if (args.Count != 2)
     {
-      return CommandHepler.BuildError("wrong number of arguments for 'llen'");
+      return CommandHepler.BuildErrorAsync("wrong number of arguments for 'llen'");
     }
 
     string key = args[1].ToString();
 
     int count = Cache.GetLLen(key);
 
-    return CommandHepler.FormatInteger(count);
+    return CommandHepler.FormatIntegerAsync(count);
   }
 }

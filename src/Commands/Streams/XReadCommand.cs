@@ -6,7 +6,7 @@ using codecrafters_redis.src.Resp;
 
 public static class XReadCommand
 {
-  public static string Process(List<RespValue> args)
+  public static async Task<string> ProcessAsync(List<RespValue> args, CancellationToken cancellationToken = default)
   {
     if (!TryParseArgs(args, out var streams, out var isBlocking, out var expirationMilliseconds))
     {
@@ -26,7 +26,12 @@ public static class XReadCommand
       return CommandHepler.FormatNull(RespType.Array);
     }
 
-    Cache.WaitForStreamEntries(streams, expirationMilliseconds);
+    bool signaled = await Cache.WaitForStreamEntriesAsync(streams, expirationMilliseconds, cancellationToken);
+    if (!signaled)
+    {
+      return CommandHepler.FormatNull(RespType.Array);
+    }
+
     streamResponses = ReadStreamResponses(streams);
 
     if (streamResponses.Count == 0)

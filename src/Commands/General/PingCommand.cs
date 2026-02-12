@@ -5,18 +5,18 @@ using codecrafters_redis.src.Resp;
 
 public static class PingCommand
 {
-  public static string Process(List<RespValue> args)
+  public static Task<string> ProcessAsync(List<RespValue> args)
   {
     if (args.Count == 1)
     {
-      return CommandHepler.FormatSimple("PONG");
+      return CommandHepler.FormatSimpleAsync("PONG");
     }
 
     if (args.Count == 2)
     {
-      return CommandHepler.FormatBulk(args[1].ToString());
+      return CommandHepler.FormatBulkAsync(args[1].ToString());
     }
 
-    return CommandHepler.BuildError("wrong number of arguments for 'ping'");
+    return CommandHepler.BuildErrorAsync("wrong number of arguments for 'ping'");
   }
 }

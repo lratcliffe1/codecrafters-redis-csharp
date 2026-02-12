@@ -6,7 +6,7 @@ using codecrafters_redis.src.Resp;
 
 public static class BLPopCommand
 {
-  public static string Process(List<RespValue> args)
+  public static async Task<string> ProcessAsync(List<RespValue> args, CancellationToken cancellationToken = default)
   {
     if (args.Count != 3)
     {
@@ -21,7 +21,17 @@ public static class BLPopCommand
       return CommandHepler.BuildError("invalid expiration for 'blpop'");
     }
 
-    List<string>? removed = Cache.BLPop(key, expiration);
+    List<string>? removed = Cache.LPop(key, 1);
+    if (removed == null)
+    {
+      bool signaled = await Cache.WaitForListEntriesAsync(key, expiration, cancellationToken);
+      if (!signaled)
+      {
+        return CommandHepler.FormatNull(RespType.Array);
+      }
+
+      removed = Cache.LPop(key, 1);
+    }
 
     if (removed == null)
     {

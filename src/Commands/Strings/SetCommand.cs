@@ -7,18 +7,18 @@ using System;
 
 public static class SetCommand
 {
-  public static string Process(List<RespValue> args)
+  public static Task<string> ProcessAsync(List<RespValue> args)
   {
     if (args.Count == 3)
     {
-      return SetWithoutExpiration(args);
+      return Task.FromResult(SetWithoutExpiration(args));
     }
     else if (args.Count == 5)
     {
-      return SetWithExpiration(args);
+      return Task.FromResult(SetWithExpiration(args));
     }
 
-    return CommandHepler.BuildError("wrong number of arguments for 'set'");
+    return CommandHepler.BuildErrorAsync("wrong number of arguments for 'set'");
   }
 
   private static string SetWithoutExpiration(List<RespValue> args)

@@ -5,13 +5,13 @@ using codecrafters_redis.src.Resp;
 
 public static class EchoCommand
 {
-  public static string Process(List<RespValue> args)
+  public static Task<string> ProcessAsync(List<RespValue> args)
   {
     if (args.Count != 2)
     {
-      return CommandHepler.BuildError("wrong number of arguments for 'echo'");
+      return CommandHepler.BuildErrorAsync("wrong number of arguments for 'echo'");
     }
 
-    return CommandHepler.FormatBulk(args[1].ToString());
+    return CommandHepler.FormatBulkAsync(args[1].ToString());
   }
 }

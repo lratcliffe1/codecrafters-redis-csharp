@@ -7,25 +7,35 @@ namespace codecrafters_redis.src.Helpers;
 
 public static class CommandHepler
 {
+  public static Task<string> FormatSimpleAsync(string value) => Task.FromResult(FormatSimple(value));
+
   public static string FormatSimple(string value)
   {
     return $"+{value}\r\n";
   }
+
+  public static Task<string> BuildErrorAsync(string value) => Task.FromResult(BuildError(value));
 
   public static string BuildError(string value)
   {
     return $"-ERR {value}\r\n";
   }
 
-  public static string FormatInteger(int value)
+  public static Task<string> FormatIntegerAsync(long value) => Task.FromResult(FormatInteger(value));
+
+  public static string FormatInteger(long value)
   {
     return $":{value}\r\n";
   }
+
+  public static Task<string> FormatBulkAsync(string value) => Task.FromResult(FormatBulk(value));
 
   public static string FormatBulk(string value)
   {
     return $"${value.Length}\r\n{value}\r\n";
   }
+
+  public static Task<string> FormatNullAsync(RespType respType) => Task.FromResult(FormatNull(respType));
 
   public static string FormatNull(RespType respType)
   {
@@ -36,6 +46,8 @@ public static class CommandHepler
       _ => "$-1\r\n",
     };
   }
+
+  public static Task<string> FormatArrayAsync(IReadOnlyList<string> values) => Task.FromResult(FormatArray(values));
 
   public static string FormatArray(IReadOnlyList<string> values)
   {
@@ -55,6 +67,8 @@ public static class CommandHepler
 
     return builder.ToString();
   }
+
+  public static Task<string> FormatStreamEntriesAsync(IReadOnlyList<StreamEntry> streamValue) => Task.FromResult(FormatStreamEntries(streamValue));
 
   public static string FormatStreamEntries(IReadOnlyList<StreamEntry> streamValue)
   {
@@ -98,6 +112,8 @@ public static class CommandHepler
       _ => "$-1\r\n"
     };
   }
+
+  public static Task<string> FormatValueAsync(CacheValue value) => Task.FromResult(FormatValue(value));
 
   private static string FormatSetValue(HashSet<string> values)
   {

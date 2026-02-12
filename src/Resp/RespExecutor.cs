@@ -9,11 +9,11 @@ namespace codecrafters_redis.src.Resp;
 
 static class RespExecutor
 {
-  public static string Execute(RespValue value)
+  public static Task<string> ExecuteAsync(RespValue value, CancellationToken cancellationToken = default)
   {
     if (value.Type != RespType.Array || value.ArrayValue == null || value.ArrayValue.Count == 0)
     {
-      return CommandHepler.BuildError("expected array command");
+      return CommandHepler.BuildErrorAsync("expected array command");
     }
 
     List<RespValue> args = value.ArrayValue;
@@ -23,21 +23,22 @@ static class RespExecutor
 
     return command switch
     {
-      "PING" => PingCommand.Process(args),
-      "ECHO" => EchoCommand.Process(args),
-      "SET" => SetCommand.Process(args),
-      "GET" => GetCommand.Process(args),
-      "RPUSH" => PushCommand.Process(args, PushDirection.Right, "rpush"),
-      "LPUSH" => PushCommand.Process(args, PushDirection.Left, "lpush"),
-      "LRANGE" => LRangeCommand.Process(args),
-      "LLEN" => LLenCommand.Process(args),
-      "LPOP" => LPopCommand.Process(args),
-      "BLPOP" => BLPopCommand.Process(args),
-      "TYPE" => TypeCommand.Process(args),
-      "XADD" => XAddCommand.Process(args),
-      "XRANGE" => XRangeCommand.Process(args),
-      "XREAD" => XReadCommand.Process(args),
-      _ => CommandHepler.BuildError($"unknown command: {command}"),
+      "PING" => PingCommand.ProcessAsync(args),
+      "ECHO" => EchoCommand.ProcessAsync(args),
+      "SET" => SetCommand.ProcessAsync(args),
+      "INCR" => IncrCommand.ProcessAsync(args),
+      "GET" => GetCommand.ProcessAsync(args),
+      "RPUSH" => PushCommand.ProcessAsync(args, PushDirection.Right, "rpush"),
+      "LPUSH" => PushCommand.ProcessAsync(args, PushDirection.Left, "lpush"),
+      "LRANGE" => LRangeCommand.ProcessAsync(args),
+      "LLEN" => LLenCommand.ProcessAsync(args),
+      "LPOP" => LPopCommand.ProcessAsync(args),
+      "BLPOP" => BLPopCommand.ProcessAsync(args, cancellationToken),
+      "TYPE" => TypeCommand.ProcessAsync(args),
+      "XADD" => XAddCommand.ProcessAsync(args),
+      "XRANGE" => XRangeCommand.ProcessAsync(args),
+      "XREAD" => XReadCommand.ProcessAsync(args, cancellationToken),
+      _ => CommandHepler.BuildErrorAsync($"unknown command: {command}"),
     };
   }
 }

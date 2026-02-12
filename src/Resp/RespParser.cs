@@ -1,18 +1,37 @@
 namespace codecrafters_redis.src.Resp;
 
-static class RespParser
+public static class RespParser
 {
   public static RespValue Parse(string data)
   {
     int index = 0;
-    return ParseValue(data, ref index);
+    RespValue value = ParseValue(data, ref index);
+    return value;
+  }
+
+  public static bool TryParse(string data, out RespValue value, out int consumedLength)
+  {
+    int index = 0;
+
+    try
+    {
+      value = ParseValue(data, ref index);
+      consumedLength = index;
+      return true;
+    }
+    catch (RespIncompleteException)
+    {
+      value = RespValue.Error("incomplete");
+      consumedLength = 0;
+      return false;
+    }
   }
 
   static RespValue ParseValue(string data, ref int index)
   {
     if (index >= data.Length)
     {
-      throw new InvalidOperationException("Empty RESP payload.");
+      throw new RespIncompleteException("Empty RESP payload.");
     }
 
     char prefix = data[index++];
@@ -37,7 +56,7 @@ static class RespParser
 
     if (index + length > data.Length)
     {
-      throw new InvalidOperationException("Bulk string length exceeds payload.");
+      throw new RespIncompleteException("Bulk string length exceeds payload.");
     }
 
     string value = data.Substring(index, length);
@@ -77,15 +96,17 @@ static class RespParser
       index++;
     }
 
-    throw new InvalidOperationException("RESP line not terminated with CRLF.");
+    throw new RespIncompleteException("RESP line not terminated with CRLF.");
   }
 
   static void ConsumeCrlf(string data, ref int index)
   {
     if (index + 1 >= data.Length || data[index] != '\r' || data[index + 1] != '\n')
     {
-      throw new InvalidOperationException("Expected CRLF.");
+      throw new RespIncompleteException("Expected CRLF.");
     }
     index += 2;
   }
+
+  private sealed class RespIncompleteException(string message) : Exception(message);
 }
