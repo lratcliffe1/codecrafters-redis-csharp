@@ -13,6 +13,8 @@ public static class XReadCommand
       return CommandHepler.BuildError("wrong number of arguments for 'xread'");
     }
 
+    streams = ResolveDollarIds(streams);
+
     var streamResponses = ReadStreamResponses(streams);
     if (streamResponses.Count > 0)
     {
@@ -102,6 +104,30 @@ public static class XReadCommand
     }
 
     return streamResponses;
+  }
+
+  private static List<(string key, string id)> ResolveDollarIds(IReadOnlyList<(string key, string id)> streams)
+  {
+    List<(string key, string id)> resolved = [];
+
+    foreach (var stream in streams)
+    {
+      if (stream.id != "$")
+      {
+        resolved.Add(stream);
+        continue;
+      }
+
+      string currentId = "0-0";
+      if (Cache.TryGetValue(stream.key, out var cacheValue) && cacheValue != null && cacheValue.TryGetStream(out var entries) && entries.Count > 0)
+      {
+        currentId = entries.Last().Id;
+      }
+
+      resolved.Add((stream.key, currentId));
+    }
+
+    return resolved;
   }
 
 }
