@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Caching.Memory;
+using codecrafters_redis.src.Helpers;
 
 namespace codecrafters_redis.src.Cache;
 
@@ -6,21 +7,44 @@ public class Cache
 {
   private static readonly MemoryCache _memoryCache = new MemoryCache(new MemoryCacheOptions());
 
-  private static readonly Dictionary<string, List<ManualResetEvent>> _events = [];
+  private static readonly Dictionary<string, List<ManualResetEventSlim>> _events = [];
+  private static readonly Dictionary<string, List<StreamWaiter>> _streamWaitersByKey = [];
 
   public static void Set(string key, CacheValue value)
   {
     _memoryCache.Remove(key);
     _memoryCache.Set(key, value);
 
-    UpdateBlockingEvents(key);
+    if (value.Type == CacheValueType.List)
+    {
+      UpdateBlockingEvents(key);
+    }
+
+    if (value.Type == CacheValueType.StreamEntries)
+    {
+      if (value.TryGetStream(out var entries) && entries.Count > 0)
+      {
+        NotifyStreamEntryAdded(key, entries.Last().Id);
+      }
+    }
   }
 
   public static void Set(string key, CacheValue value, int expirationMilliseconds)
   {
     _memoryCache.Set(key, value, TimeSpan.FromMilliseconds(expirationMilliseconds));
 
-    UpdateBlockingEvents(key);
+    if (value.Type == CacheValueType.List)
+    {
+      UpdateBlockingEvents(key);
+    }
+
+    if (value.Type == CacheValueType.StreamEntries)
+    {
+      if (value.TryGetStream(out var entries) && entries.Count > 0)
+      {
+        NotifyStreamEntryAdded(key, entries.Last().Id);
+      }
+    }
   }
 
   public static int Append(string key, List<string> values)
@@ -66,6 +90,52 @@ public class Cache
 
     value = null;
     return false;
+  }
+
+  public static bool WaitForStreamEntries(IReadOnlyList<(string key, string id)> streams, double expirationMilliseconds)
+  {
+    if (streams.Count == 0)
+    {
+      return false;
+    }
+
+    StreamWaiter waiter = new(streams);
+    RegisterStreamWaiter(waiter);
+
+    try
+    {
+      if (expirationMilliseconds == 0)
+      {
+        waiter.Signal.Wait();
+        return true;
+      }
+
+      return waiter.Signal.Wait(TimeSpan.FromMilliseconds(expirationMilliseconds));
+    }
+    finally
+    {
+      UnregisterStreamWaiter(waiter);
+      waiter.Signal.Dispose();
+    }
+  }
+
+  public static void NotifyStreamEntryAdded(string key, string entryId)
+  {
+    lock (_streamWaitersByKey)
+    {
+      if (!_streamWaitersByKey.TryGetValue(key, out var waiters))
+      {
+        return;
+      }
+
+      foreach (var waiter in waiters)
+      {
+        if (waiter.TryGetLastSeenId(key, out string lastSeenId) && StreamIdHelper.IsGreaterThan(entryId, lastSeenId))
+        {
+          waiter.Signal.Set();
+        }
+      }
+    }
   }
 
   public static List<string> GetLRange(string key, int start, int stop)
@@ -126,7 +196,7 @@ public class Cache
     if (result != null)
       return result;
 
-    var newEvent = new ManualResetEvent(false);
+    var newEvent = new ManualResetEventSlim(false);
 
     try
     {
@@ -144,11 +214,11 @@ public class Cache
 
       if (expiration == 0)
       {
-        newEvent.WaitOne();
+        newEvent.Wait();
       }
       else
       {
-        newEvent.WaitOne((int)(expiration * 1000));
+        newEvent.Wait((int)(expiration * 1000));
       }
 
       return LPop(key, 1);
@@ -198,6 +268,71 @@ public class Cache
 
         nextEvent.Set();
       }
+    }
+  }
+
+  private static void RegisterStreamWaiter(StreamWaiter waiter)
+  {
+    lock (_streamWaitersByKey)
+    {
+      foreach ((string key, _) in waiter.Streams)
+      {
+        if (_streamWaitersByKey.TryGetValue(key, out var waiters))
+        {
+          waiters.Add(waiter);
+        }
+        else
+        {
+          _streamWaitersByKey.Add(key, [waiter]);
+        }
+      }
+    }
+  }
+
+  private static void UnregisterStreamWaiter(StreamWaiter waiter)
+  {
+    lock (_streamWaitersByKey)
+    {
+      foreach ((string key, _) in waiter.Streams)
+      {
+        if (!_streamWaitersByKey.TryGetValue(key, out var waiters))
+        {
+          continue;
+        }
+
+        waiters.Remove(waiter);
+        if (waiters.Count == 0)
+        {
+          _streamWaitersByKey.Remove(key);
+        }
+      }
+    }
+  }
+
+  private sealed class StreamWaiter
+  {
+    private readonly Dictionary<string, string> _lastSeenIds;
+
+    public StreamWaiter(IReadOnlyList<(string key, string id)> streams)
+    {
+      Streams = streams;
+      Signal = new ManualResetEventSlim(false);
+      _lastSeenIds = streams.ToDictionary(stream => stream.key, stream => stream.id);
+    }
+
+    public IReadOnlyList<(string key, string id)> Streams { get; }
+    public ManualResetEventSlim Signal { get; }
+
+    public bool TryGetLastSeenId(string key, out string lastSeenId)
+    {
+      if (_lastSeenIds.TryGetValue(key, out string? value))
+      {
+        lastSeenId = value;
+        return true;
+      }
+
+      lastSeenId = string.Empty;
+      return false;
     }
   }
 }

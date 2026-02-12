@@ -85,81 +85,62 @@ public static class CommandHepler
 
   public static string FormatValue(CacheValue value)
   {
-    switch (value.Type)
+    return value.Type switch
     {
-      case CacheValueType.String:
-        if (value.TryGetString(out string stringValue))
-        {
-          return FormatBulk(stringValue);
-        }
-        break;
-      case CacheValueType.List:
-        if (value.TryGetList(out List<string> listValue))
-        {
-          return FormatArray(listValue);
-        }
-        break;
-      case CacheValueType.Set:
-        if (value.TryGetSet(out HashSet<string> setValue))
-        {
-          return FormatArray(setValue.OrderBy(item => item).ToList());
-        }
-        break;
-      case CacheValueType.ZSet:
-        if (value.TryGetZSet(out List<ZSetEntry> zsetValue))
-        {
-          List<string> flattened = [];
-          foreach (ZSetEntry entry in zsetValue.OrderBy(entry => entry.Score).ThenBy(entry => entry.Member))
-          {
-            flattened.Add(entry.Member);
-            flattened.Add(entry.Score.ToString(CultureInfo.InvariantCulture));
-          }
-          return FormatArray(flattened);
-        }
-        break;
-      case CacheValueType.Hash:
-        if (value.TryGetHash(out Dictionary<string, string> hashValue))
-        {
-          List<string> flattened = [];
-          foreach (KeyValuePair<string, string> entry in hashValue)
-          {
-            flattened.Add(entry.Key);
-            flattened.Add(entry.Value);
-          }
-          return FormatArray(flattened);
-        }
-        break;
-      case CacheValueType.Stream:
-        if (value.TryGetStreamReadResult(out StreamReadResult streamValue))
-        {
-          return FormatStreamReadResult(streamValue.Key, streamValue.Entries);
-        }
-        break;
-      case CacheValueType.StreamEntries:
-        if (value.TryGetStream(out List<StreamEntry> streamEntriesValue))
-        {
-          return FormatStreamEntries(streamEntriesValue);
-        }
-        break;
-      case CacheValueType.VectorSet:
-        if (value.TryGetVectorSet(out List<VectorSetEntry> vectorSetValue))
-        {
-          List<string> entries = [];
-          foreach (VectorSetEntry entry in vectorSetValue)
-          {
-            List<string> vector = entry.Vector
-              .Select(component => component.ToString(CultureInfo.InvariantCulture))
-              .ToList();
-            string vectorResp = FormatArray(vector);
-            string entryResp = FormatArrayOfResp([FormatBulk(entry.Member), vectorResp]);
-            entries.Add(entryResp);
-          }
+      CacheValueType.String when value.TryGetString(out string stringValue) => FormatBulk(stringValue),
+      CacheValueType.List when value.TryGetList(out List<string> listValue) => FormatArray(listValue),
+      CacheValueType.Set when value.TryGetSet(out HashSet<string> setValue) => FormatSetValue(setValue),
+      CacheValueType.ZSet when value.TryGetZSet(out List<ZSetEntry> zsetValue) => FormatZSetValue(zsetValue),
+      CacheValueType.Hash when value.TryGetHash(out Dictionary<string, string> hashValue) => FormatHashValue(hashValue),
+      CacheValueType.Stream when value.TryGetStreamReadResult(out StreamReadResult streamValue) => FormatStreamReadResult(streamValue.Key, streamValue.Entries),
+      CacheValueType.StreamEntries when value.TryGetStream(out List<StreamEntry> streamEntriesValue) => FormatStreamEntries(streamEntriesValue),
+      CacheValueType.VectorSet when value.TryGetVectorSet(out List<VectorSetEntry> vectorSetValue) => FormatVectorSetValue(vectorSetValue),
+      _ => "$-1\r\n"
+    };
+  }
 
-          return FormatArrayOfResp(entries);
-        }
-        break;
+  private static string FormatSetValue(HashSet<string> values)
+  {
+    return FormatArray(values.OrderBy(item => item).ToList());
+  }
+
+  private static string FormatZSetValue(List<ZSetEntry> entries)
+  {
+    List<string> flattened = [];
+    foreach (ZSetEntry entry in entries.OrderBy(entry => entry.Score).ThenBy(entry => entry.Member))
+    {
+      flattened.Add(entry.Member);
+      flattened.Add(entry.Score.ToString(CultureInfo.InvariantCulture));
     }
 
-    return "$-1\r\n";
+    return FormatArray(flattened);
+  }
+
+  private static string FormatHashValue(Dictionary<string, string> values)
+  {
+    List<string> flattened = [];
+    foreach (KeyValuePair<string, string> entry in values)
+    {
+      flattened.Add(entry.Key);
+      flattened.Add(entry.Value);
+    }
+
+    return FormatArray(flattened);
+  }
+
+  private static string FormatVectorSetValue(List<VectorSetEntry> values)
+  {
+    List<string> entries = [];
+    foreach (VectorSetEntry entry in values)
+    {
+      List<string> vector = entry.Vector
+        .Select(component => component.ToString(CultureInfo.InvariantCulture))
+        .ToList();
+      string vectorResp = FormatArray(vector);
+      string entryResp = FormatArrayOfResp([FormatBulk(entry.Member), vectorResp]);
+      entries.Add(entryResp);
+    }
+
+    return FormatArrayOfResp(entries);
   }
 }
