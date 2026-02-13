@@ -39,6 +39,7 @@ static class RespExecutor
       "XRANGE" => XRangeCommand.ProcessAsync(args),
       "XREAD" => XReadCommand.ProcessAsync(args, cancellationToken),
       "MULTI" => MultiCommand.ProcessAsync(args),
+      "EXEC" => ExecCommand.ProcessAsync(args),
       _ => CommandHepler.BuildErrorAsync($"unknown command: {command}"),
     };
   }
