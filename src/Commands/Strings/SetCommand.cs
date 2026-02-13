@@ -5,33 +5,34 @@ using codecrafters_redis.src.Helpers;
 using codecrafters_redis.src.Resp;
 using System;
 
-public static class SetCommand
+public class SetCommand(ICacheStore cacheStore) : IRedisCommand
 {
-  public static Task<string> ProcessAsync(List<RespValue> args)
+  public string Name => "SET";
+  public Task<string> ExecuteAsync(List<RespValue> args, CommandExecutionContext context)
   {
     if (args.Count == 3)
     {
-      return Task.FromResult(SetWithoutExpiration(args));
+      return Task.FromResult(SetWithoutExpiration(args, cacheStore));
     }
     else if (args.Count == 5)
     {
-      return Task.FromResult(SetWithExpiration(args));
+      return Task.FromResult(SetWithExpiration(args, cacheStore));
     }
 
-    return CommandHepler.BuildErrorAsync("wrong number of arguments for 'set'");
+    return CommandHelper.BuildErrorAsync("wrong number of arguments for 'set'");
   }
 
-  private static string SetWithoutExpiration(List<RespValue> args)
+  private static string SetWithoutExpiration(List<RespValue> args, ICacheStore cacheStore)
   {
     string key = args[1].ToString();
     string val = args[2].ToString();
 
-    Cache.Set(key, CacheValue.String(val));
+    cacheStore.Set(key, CacheValue.String(val));
 
-    return CommandHepler.FormatSimple("OK");
+    return CommandHelper.FormatSimple("OK");
   }
 
-  private static string SetWithExpiration(List<RespValue> args)
+  private static string SetWithExpiration(List<RespValue> args, ICacheStore cacheStore)
   {
     string key = args[1].ToString();
     string val = args[2].ToString();
@@ -40,11 +41,11 @@ public static class SetCommand
 
     if (string.IsNullOrEmpty(key))
     {
-      return CommandHepler.BuildError("invalid key for 'set'");
+      return CommandHelper.BuildError("invalid key for 'set'");
     }
     if (string.IsNullOrEmpty(val))
     {
-      return CommandHepler.BuildError("invalid value for 'set'");
+      return CommandHelper.BuildError("invalid value for 'set'");
     }
 
     bool isEx = string.Compare(expirationType, "ex", StringComparison.CurrentCultureIgnoreCase) == 0;
@@ -52,18 +53,18 @@ public static class SetCommand
 
     if (!isEx && !isPx)
     {
-      return CommandHepler.BuildError("wrong expiration type for 'set'");
+      return CommandHelper.BuildError("wrong expiration type for 'set'");
     }
 
     if (!int.TryParse(expirationRaw, out int expiration))
     {
-      return CommandHepler.BuildError("invalid expiration for 'set'");
+      return CommandHelper.BuildError("invalid expiration for 'set'");
     }
 
     int expirationInMilliseconds = isPx ? expiration : expiration * 1000;
 
-    Cache.Set(key, CacheValue.String(val), expirationInMilliseconds);
+    cacheStore.Set(key, CacheValue.String(val), expirationInMilliseconds);
 
-    return CommandHepler.FormatSimple("OK");
+    return CommandHelper.FormatSimple("OK");
   }
 }

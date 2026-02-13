@@ -4,19 +4,20 @@ using codecrafters_redis.src.Cache;
 using codecrafters_redis.src.Helpers;
 using codecrafters_redis.src.Resp;
 
-public static class LLenCommand
+public class LLenCommand(ICacheStore cacheStore) : IRedisCommand
 {
-  public static Task<string> ProcessAsync(List<RespValue> args)
+  public string Name => "LLEN";
+  public Task<string> ExecuteAsync(List<RespValue> args, CommandExecutionContext context)
   {
     if (args.Count != 2)
     {
-      return CommandHepler.BuildErrorAsync("wrong number of arguments for 'llen'");
+      return CommandHelper.BuildErrorAsync("wrong number of arguments for 'llen'");
     }
 
     string key = args[1].ToString();
 
-    int count = Cache.GetLLen(key);
+    int count = cacheStore.GetLLen(key);
 
-    return CommandHepler.FormatIntegerAsync(count);
+    return CommandHelper.FormatIntegerAsync(count);
   }
 }

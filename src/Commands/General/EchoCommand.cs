@@ -3,15 +3,16 @@ namespace codecrafters_redis.src.Commands.General;
 using codecrafters_redis.src.Helpers;
 using codecrafters_redis.src.Resp;
 
-public static class EchoCommand
+public class EchoCommand : IRedisCommand
 {
-  public static Task<string> ProcessAsync(List<RespValue> args)
+  public string Name => "ECHO";
+  public Task<string> ExecuteAsync(List<RespValue> args, CommandExecutionContext context)
   {
     if (args.Count != 2)
     {
-      return CommandHepler.BuildErrorAsync("wrong number of arguments for 'echo'");
+      return CommandHelper.BuildErrorAsync("wrong number of arguments for 'echo'");
     }
 
-    return CommandHepler.FormatBulkAsync(args[1].ToString());
+    return CommandHelper.FormatBulkAsync(args[1].ToString());
   }
 }

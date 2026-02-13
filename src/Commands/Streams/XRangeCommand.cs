@@ -4,13 +4,14 @@ using codecrafters_redis.src.Cache;
 using codecrafters_redis.src.Helpers;
 using codecrafters_redis.src.Resp;
 
-public static class XRangeCommand
+public class XRangeCommand(ICacheStore cacheStore) : IRedisCommand
 {
-  public static Task<string> ProcessAsync(List<RespValue> args)
+  public string Name => "XRANGE";
+  public Task<string> ExecuteAsync(List<RespValue> args, CommandExecutionContext context)
   {
     if (args.Count != 4)
     {
-      return CommandHepler.BuildErrorAsync("wrong number of arguments for 'xrange'");
+      return CommandHelper.BuildErrorAsync("wrong number of arguments for 'xrange'");
     }
 
     string key = args[1].ToString();
@@ -19,11 +20,11 @@ public static class XRangeCommand
 
     List<StreamEntry> result = [];
 
-    if (Cache.TryGetValue(key, out var cacheValue) && cacheValue != null && cacheValue.TryGetStream(out var entries) && entries.Count > 0)
+    if (cacheStore.TryGetValue(key, out var cacheValue) && cacheValue != null && cacheValue.TryGetStream(out var entries) && entries.Count > 0)
     {
       result = StreamRangeHelper.FilterEntries(entries, startValue, endValue);
     }
 
-    return CommandHepler.FormatStreamEntriesAsync(result);
+    return CommandHelper.FormatStreamEntriesAsync(result);
   }
 }

@@ -3,20 +3,21 @@ namespace codecrafters_redis.src.Commands.General;
 using codecrafters_redis.src.Helpers;
 using codecrafters_redis.src.Resp;
 
-public static class PingCommand
+public class PingCommand : IRedisCommand
 {
-  public static Task<string> ProcessAsync(List<RespValue> args)
+  public string Name => "PING";
+  public Task<string> ExecuteAsync(List<RespValue> args, CommandExecutionContext context)
   {
     if (args.Count == 1)
     {
-      return CommandHepler.FormatSimpleAsync("PONG");
+      return CommandHelper.FormatSimpleAsync("PONG");
     }
 
     if (args.Count == 2)
     {
-      return CommandHepler.FormatBulkAsync(args[1].ToString());
+      return CommandHelper.FormatBulkAsync(args[1].ToString());
     }
 
-    return CommandHepler.BuildErrorAsync("wrong number of arguments for 'ping'");
+    return CommandHelper.BuildErrorAsync("wrong number of arguments for 'ping'");
   }
 }

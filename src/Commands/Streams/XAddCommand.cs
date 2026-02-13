@@ -4,13 +4,14 @@ using codecrafters_redis.src.Cache;
 using codecrafters_redis.src.Helpers;
 using codecrafters_redis.src.Resp;
 
-public static class XAddCommand
+public class XAddCommand(ICacheStore cacheStore) : IRedisCommand
 {
-  public static Task<string> ProcessAsync(List<RespValue> args)
+  public string Name => "XADD";
+  public Task<string> ExecuteAsync(List<RespValue> args, CommandExecutionContext context)
   {
     if (!HasValidArgs(args))
     {
-      return CommandHepler.BuildErrorAsync("wrong number of arguments for 'xadd'");
+      return CommandHelper.BuildErrorAsync("wrong number of arguments for 'xadd'");
     }
 
     var key = args[1].ToString();
@@ -18,7 +19,7 @@ public static class XAddCommand
 
     if (idToken == "0-0")
     {
-      return CommandHepler.BuildErrorAsync("The ID specified in XADD must be greater than 0-0");
+      return CommandHelper.BuildErrorAsync("The ID specified in XADD must be greater than 0-0");
     }
 
     if (idToken == "*")
@@ -28,7 +29,7 @@ public static class XAddCommand
 
     List<StreamEntry> entries = [];
     List<long>? lastEntryIdParts = null;
-    if (Cache.TryGetValue(key, out var cacheValue) && cacheValue != null && cacheValue.TryGetStream(out var existingEntries))
+    if (cacheStore.TryGetValue(key, out var cacheValue) && cacheValue != null && cacheValue.TryGetStream(out var existingEntries))
     {
       entries = existingEntries;
       if (entries.Count > 0)
@@ -45,9 +46,9 @@ public static class XAddCommand
 
     var fields = ReadFields(args);
     entries.Add(new StreamEntry(entryId, fields));
-    Cache.Set(key, CacheValue.StreamEntries(entries));
+    cacheStore.Set(key, CacheValue.StreamEntries(entries));
 
-    return CommandHepler.FormatBulkAsync(entryId);
+    return CommandHelper.FormatBulkAsync(entryId);
   }
 
   private static bool HasValidArgs(List<RespValue> args)
@@ -71,7 +72,7 @@ public static class XAddCommand
 
     if (lastEntryIdParts != null && IsNotGreaterThanLastId(newEntryIdParts, lastEntryIdParts))
     {
-      error = CommandHepler.BuildError("The ID specified in XADD is equal or smaller than the target stream top item");
+      error = CommandHelper.BuildError("The ID specified in XADD is equal or smaller than the target stream top item");
       return false;
     }
 

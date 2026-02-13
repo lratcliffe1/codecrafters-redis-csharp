@@ -2,26 +2,34 @@ using System.Collections.Concurrent;
 
 namespace codecrafters_redis.src.Cache;
 
-public static class ReplicaCache
+public interface IReplicaStore
 {
-  private static readonly ConcurrentDictionary<int, ReplicaCacheEntry> _replicaCache = new();
+  void Set(int key, ReplicaType type);
+  bool TryGetValue(int key, out ReplicaCacheEntry? value);
+  void AddSlave(int key, int slaveKey);
+}
 
-  public static void Set(int key, ReplicaType type)
+public sealed class ReplicaStore : IReplicaStore
+{
+  private readonly ConcurrentDictionary<int, ReplicaCacheEntry> _replicaCache = new();
+
+  public void Set(int key, ReplicaType type)
   {
     _replicaCache[key] = new ReplicaCacheEntry(key, type);
   }
 
-  public static bool TryGetValue(int key, out ReplicaCacheEntry? value)
+  public bool TryGetValue(int key, out ReplicaCacheEntry? value)
   {
     return _replicaCache.TryGetValue(key, out value);
   }
 
-  public static void AddSlave(int key, int slaveKey)
+  public void AddSlave(int key, int slaveKey)
   {
     if (!_replicaCache.TryGetValue(key, out var entry))
     {
       throw new InvalidOperationException($"Replica cache entry not found for key: {key}");
     }
+
     entry.Slaves.Add(slaveKey);
   }
 }

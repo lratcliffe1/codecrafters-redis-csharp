@@ -1,23 +1,26 @@
-namespace codecrafters_redis.src.Commands.Multi;
+namespace codecrafters_redis.src.Commands.General;
 
 using codecrafters_redis.src.Cache;
 using codecrafters_redis.src.Helpers;
 using codecrafters_redis.src.Resp;
 
-public static class TypeCommand
+public class TypeCommand(ICacheStore cacheStore) : IRedisCommand
 {
-  public static Task<string> ProcessAsync(List<RespValue> args)
+  public ICacheStore cacheStore = cacheStore;
+
+  public string Name => "TYPE";
+  public Task<string> ExecuteAsync(List<RespValue> args, CommandExecutionContext context)
   {
     if (args.Count != 2)
     {
-      return CommandHepler.BuildErrorAsync("wrong number of arguments for 'type'");
+      return CommandHelper.BuildErrorAsync("wrong number of arguments for 'type'");
     }
 
     string key = args[1].ToString();
 
-    if (!Cache.TryGetValue(key, out CacheValue? val) || val == null)
+    if (!cacheStore.TryGetValue(key, out CacheValue? val) || val == null)
     {
-      return CommandHepler.FormatSimpleAsync("none");
+      return CommandHelper.FormatSimpleAsync("none");
     }
 
     string type = val.Type switch
@@ -33,6 +36,6 @@ public static class TypeCommand
       _ => "none",
     };
 
-    return CommandHepler.FormatSimpleAsync(type);
+    return CommandHelper.FormatSimpleAsync(type);
   }
 }

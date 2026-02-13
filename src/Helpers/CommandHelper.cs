@@ -5,7 +5,7 @@ using codecrafters_redis.src.Resp;
 
 namespace codecrafters_redis.src.Helpers;
 
-public static class CommandHepler
+public static class CommandHelper
 {
   public static Task<string> FormatSimpleAsync(string value) => Task.FromResult(FormatSimple(value));
 

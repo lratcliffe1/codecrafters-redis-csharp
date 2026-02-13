@@ -4,32 +4,34 @@ using codecrafters_redis.src.Resp;
 
 namespace codecrafters_redis.src.Commands.Replication;
 
-public static class InfoCommand
+public sealed class InfoCommand(IReplicaStore replicaStore) : IRedisCommand
 {
-  public static Task<string> ProcessAsync(List<RespValue> args, int port)
+  public string Name => "MULTI";
+  public Task<string> ExecuteAsync(List<RespValue> args, CommandExecutionContext context)
   {
     if (args.Count == 1)
     {
-      return CommandHepler.FormatBulkAsync(
+      return CommandHelper.FormatBulkAsync(
         "# Server\r\n" + GetServerInfo() +
         "# Client\r\n" + GetClientInfo() +
         "# Memory\r\n" + GetMemoryInfo() +
         "# Replication\r\n" +
-        GetReplicationInfo(port));
+        GetReplicationInfo(context.Port));
     }
 
     if (args.Count == 2)
     {
-      return args[1].ToString().ToLowerInvariant() switch {
-        "server" => CommandHepler.FormatBulkAsync(GetServerInfo()),
-        "client" => CommandHepler.FormatBulkAsync(GetClientInfo()),
-        "memory" => CommandHepler.FormatBulkAsync(GetMemoryInfo()),
-        "replication" => CommandHepler.FormatBulkAsync(GetReplicationInfo(port)),
-        _ => CommandHepler.BuildErrorAsync("invalid argument for 'info'"),
+      return args[1].ToString().ToLowerInvariant() switch
+      {
+        "server" => CommandHelper.FormatBulkAsync(GetServerInfo()),
+        "client" => CommandHelper.FormatBulkAsync(GetClientInfo()),
+        "memory" => CommandHelper.FormatBulkAsync(GetMemoryInfo()),
+        "replication" => CommandHelper.FormatBulkAsync(GetReplicationInfo(context.Port)),
+        _ => CommandHelper.BuildErrorAsync("invalid argument for 'info'"),
       };
     }
 
-    return CommandHepler.BuildErrorAsync("wrong number of arguments for 'info' command");
+    return CommandHelper.BuildErrorAsync("wrong number of arguments for 'info' command");
   }
 
   private static string GetServerInfo()
@@ -47,9 +49,9 @@ public static class InfoCommand
     return $"used_memory:1000\r\n".ToLowerInvariant();
   }
 
-  private static string GetReplicationInfo(int port)
+  private string GetReplicationInfo(int port)
   {
-    if (ReplicaCache.TryGetValue(port, out var entry) && entry != null)
+    if (replicaStore.TryGetValue(port, out var entry) && entry != null)
     {
       return ($"role:{entry.Type}\r\n"
         + $"master_replid:8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb\r\n"

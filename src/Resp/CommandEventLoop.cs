@@ -3,7 +3,15 @@ using codecrafters_redis.src.Helpers;
 
 namespace codecrafters_redis.src.Resp;
 
-internal static class CommandEventLoop
+public interface ICommandEventLoop
+{
+  Task<string> ExecuteAsync(RespValue value, long clientId, int port, CancellationToken cancellationToken);
+  ValueTask NotifyClientDisconnectedAsync(long clientId, int port);
+
+  ValueTask DisposeAsync();
+}
+
+internal sealed class CommandEventLoop : ICommandEventLoop, IAsyncDisposable
 {
   private enum EnvelopeType
   {
@@ -11,23 +19,29 @@ internal static class CommandEventLoop
     ClientDisconnected,
   }
 
-  private static readonly ConcurrentExclusiveSchedulerPair _loopSchedulerPair = new();
-  private static readonly TaskFactory _loopTaskFactory = new(
-    CancellationToken.None,
-    TaskCreationOptions.DenyChildAttach,
-    TaskContinuationOptions.None,
-    _loopSchedulerPair.ExclusiveScheduler);
-
-  private static readonly Channel<CommandEnvelope> _queue = Channel.CreateUnbounded<CommandEnvelope>(
+  private readonly ConcurrentExclusiveSchedulerPair _loopSchedulerPair = new();
+  private readonly TaskFactory _loopTaskFactory;
+  private readonly Channel<CommandEnvelope> _queue = Channel.CreateUnbounded<CommandEnvelope>(
     new UnboundedChannelOptions
     {
       SingleReader = true,
       SingleWriter = false,
     });
+  private readonly Task _processorTask;
+  private readonly IRespExecutor _respExecutor;
 
-  private static readonly Task _processorTask = Task.Run(ProcessLoopAsync);
+  public CommandEventLoop(IRespExecutor respExecutor)
+  {
+    _respExecutor = respExecutor;
+    _loopTaskFactory = new TaskFactory(
+    CancellationToken.None,
+    TaskCreationOptions.DenyChildAttach,
+    TaskContinuationOptions.None,
+    _loopSchedulerPair.ExclusiveScheduler);
+    _processorTask = Task.Run(ProcessLoopAsync);
+  }
 
-  public static async Task<string> ExecuteAsync(RespValue value, long clientId, int port, CancellationToken cancellationToken)
+  public async Task<string> ExecuteAsync(RespValue value, long clientId, int port, CancellationToken cancellationToken)
   {
     TaskCompletionSource<string> completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
     CommandEnvelope envelope = new(EnvelopeType.Execute, value, clientId, port, completion, cancellationToken);
@@ -36,13 +50,13 @@ internal static class CommandEventLoop
     return await completion.Task.WaitAsync(cancellationToken);
   }
 
-  public static ValueTask NotifyClientDisconnectedAsync(long clientId, int port)
+  public ValueTask NotifyClientDisconnectedAsync(long clientId, int port)
   {
     CommandEnvelope envelope = new(EnvelopeType.ClientDisconnected, null, clientId, port, null, CancellationToken.None);
     return _queue.Writer.WriteAsync(envelope);
   }
 
-  private static async Task ProcessLoopAsync()
+  private async Task ProcessLoopAsync()
   {
     await foreach (CommandEnvelope envelope in _queue.Reader.ReadAllAsync())
     {
@@ -58,7 +72,7 @@ internal static class CommandEventLoop
     }
   }
 
-  private static void ProcessCommandEnvelope(CommandEnvelope envelope)
+  private void ProcessCommandEnvelope(CommandEnvelope envelope)
   {
     if (envelope.Value == null || envelope.Completion == null)
     {
@@ -69,7 +83,7 @@ internal static class CommandEventLoop
     {
       Task<string> executionTask = _loopTaskFactory
         .StartNew(
-          () => LoopOwnerContext.RunOnOwnerLaneAsync(() => RespExecutor.ExecuteAsync(envelope.Value, envelope.ClientId, envelope.Port, envelope.CancellationToken)),
+          () => LoopOwnerContext.RunOnOwnerLaneAsync(() => _respExecutor.ExecuteAsync(envelope.Value, envelope.ClientId, envelope.Port, envelope.CancellationToken)),
           envelope.CancellationToken)
         .Unwrap();
 
@@ -87,17 +101,17 @@ internal static class CommandEventLoop
     }
     catch (Exception exception)
     {
-      envelope.Completion.TrySetResult(CommandHepler.BuildError($"internal server error: {exception.Message}"));
+      envelope.Completion.TrySetResult(CommandHelper.BuildError($"internal server error: {exception.Message}"));
     }
   }
 
-  private static Task<int> ProcessClientDisconnectedAsync(long clientId)
+  private Task<int> ProcessClientDisconnectedAsync(long clientId)
   {
     return _loopTaskFactory
       .StartNew(
         () => LoopOwnerContext.RunOnOwnerLaneAsync(() =>
         {
-          RespExecutor.OnClientDisconnected(clientId);
+          _respExecutor.OnClientDisconnected(clientId);
           return Task.FromResult(0);
         }),
         CancellationToken.None)
@@ -108,14 +122,14 @@ internal static class CommandEventLoop
   {
     if (executionTask.IsCanceled)
     {
-      completion.TrySetResult(CommandHepler.FormatNull(RespType.Array));
+      completion.TrySetResult(CommandHelper.FormatNull(RespType.Array));
       return;
     }
 
     if (executionTask.IsFaulted)
     {
       string message = executionTask.Exception?.GetBaseException().Message ?? "unknown";
-      completion.TrySetResult(CommandHepler.BuildError($"internal server error: {message}"));
+      completion.TrySetResult(CommandHelper.BuildError($"internal server error: {message}"));
       return;
     }
 
@@ -129,4 +143,16 @@ internal static class CommandEventLoop
     int Port,
     TaskCompletionSource<string>? Completion,
     CancellationToken CancellationToken);
+
+  public async ValueTask DisposeAsync()
+  {
+    _queue.Writer.TryComplete();
+    _loopSchedulerPair.Complete();
+
+    try
+    {
+      await _processorTask.ConfigureAwait(false);
+    }
+    catch (Exception) { }
+  }
 }

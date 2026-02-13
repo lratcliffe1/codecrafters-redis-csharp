@@ -1,40 +1,51 @@
+using codecrafters_redis.src.Commands;
 using codecrafters_redis.src.Cache;
-using codecrafters_redis.src.Commands.General;
-using codecrafters_redis.src.Commands.Lists;
-using codecrafters_redis.src.Commands.Multi;
-using codecrafters_redis.src.Commands.Replication;
-using codecrafters_redis.src.Commands.Streams;
-using codecrafters_redis.src.Commands.Strings;
 using codecrafters_redis.src.Helpers;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace codecrafters_redis.src.Resp;
 
-static class RespExecutor
+public interface IRespExecutor
 {
-  public static Task<string> ExecuteAsync(RespValue value, long clientId, int port, CancellationToken cancellationToken = default)
+  Task<string> ExecuteAsync(RespValue value, long clientId, int port, CancellationToken cancellationToken = default);
+  void OnClientDisconnected(long clientId);
+}
+
+public sealed class RespExecutor(
+  IClientMultiStore clientMultiStore,
+  IServiceProvider serviceProvider,
+  [FromKeyedServices("DISCARD")] IRedisCommand discardCommand,
+  [FromKeyedServices("MULTI")] IRedisCommand multiCommand) : IRespExecutor
+{
+  private readonly IClientMultiStore _clientMultiStore = clientMultiStore;
+  private readonly IServiceProvider _serviceProvider = serviceProvider;
+  private readonly IRedisCommand _discardCommand = discardCommand;
+  private readonly IRedisCommand _multiCommand = multiCommand;
+
+  public Task<string> ExecuteAsync(RespValue value, long clientId, int port, CancellationToken cancellationToken = default)
   {
-    if (!TryReadCommand(value, out List<RespValue>? args, out string command))
+    if (!TryReadCommand(value, out string command))
     {
-      return CommandHepler.BuildErrorAsync("expected array command");
+      return CommandHelper.BuildErrorAsync("expected array command");
     }
 
-    if (ClientMultiCache.ContainsKey(clientId))
+    if (_clientMultiStore.ContainsKey(clientId))
     {
       return ExecuteInMultiAsync(value, command, clientId, port, cancellationToken);
     }
 
-    return ExecuteCommandAsync(args!, command, clientId, port, cancellationToken);
+    return ExecuteCommandAsync(value, command, clientId, port, cancellationToken);
   }
 
-  public static void OnClientDisconnected(long clientId)
+  public void OnClientDisconnected(long clientId)
   {
-    ClientMultiCache.Remove(clientId);
+    _clientMultiStore.Remove(clientId);
   }
 
-  private static bool TryReadCommand(RespValue value, out List<RespValue>? args, out string command)
+  private static bool TryReadCommand(RespValue value, out string command)
   {
     command = string.Empty;
-    args = value.ArrayValue;
+    var args = value.ArrayValue;
     if (value.Type != RespType.Array || args == null || args.Count == 0)
     {
       return false;
@@ -44,62 +55,69 @@ static class RespExecutor
     return true;
   }
 
-  private static Task<string> ExecuteInMultiAsync(
+  private Task<string> ExecuteInMultiAsync(
     RespValue originalValue,
     string command,
     long clientId,
     int port,
     CancellationToken cancellationToken)
   {
+    CommandExecutionContext context = new(clientId, port, cancellationToken, originalValue);
+
     return command switch
     {
       "EXEC" => ExecCommandAsync(clientId, port, cancellationToken),
-      "MULTI" => CommandHepler.BuildErrorAsync("MULTI calls can not be nested"),
-      "DISCARD" => DiscardHelper.ProcessAsync(clientId, cancellationToken),
-      _ => MultiCommand.ProcessAsync(originalValue, clientId),
+      "MULTI" => CommandHelper.BuildErrorAsync("MULTI calls can not be nested"),
+      "DISCARD" => _discardCommand.ExecuteAsync(originalValue.ArrayValue ?? [], context),
+      _ => _multiCommand.ExecuteAsync(originalValue.ArrayValue ?? [], context),
     };
   }
 
-  private static Task<string> ExecuteCommandAsync(
-    List<RespValue> args,
+  private Task<string> ExecuteCommandAsync(
+    RespValue originalValue,
     string command,
     long clientId,
     int port,
     CancellationToken cancellationToken)
   {
-    return command switch
+    if (string.Equals(command, "EXEC", StringComparison.OrdinalIgnoreCase))
     {
-      "PING" => PingCommand.ProcessAsync(args),
-      "ECHO" => EchoCommand.ProcessAsync(args),
-      "SET" => SetCommand.ProcessAsync(args),
-      "INCR" => IncrCommand.ProcessAsync(args),
-      "GET" => GetCommand.ProcessAsync(args),
-      "RPUSH" => PushCommand.ProcessAsync(args, PushDirection.Right, "rpush"),
-      "LPUSH" => PushCommand.ProcessAsync(args, PushDirection.Left, "lpush"),
-      "LRANGE" => LRangeCommand.ProcessAsync(args),
-      "LLEN" => LLenCommand.ProcessAsync(args),
-      "LPOP" => LPopCommand.ProcessAsync(args),
-      "BLPOP" => BLPopCommand.ProcessAsync(args, cancellationToken),
-      "TYPE" => TypeCommand.ProcessAsync(args),
-      "XADD" => XAddCommand.ProcessAsync(args),
-      "XRANGE" => XRangeCommand.ProcessAsync(args),
-      "XREAD" => XReadCommand.ProcessAsync(args, cancellationToken),
-      "MULTI" => MultiCommand.ProcessAsync(null, clientId),
-      "EXEC" => ExecCommandAsync(clientId, port, cancellationToken),
-      "DISCARD" => CommandHepler.BuildErrorAsync("DISCARD without MULTI"),
-      "INFO" => InfoCommand.ProcessAsync(args, port),
-      _ => CommandHepler.BuildErrorAsync($"unknown command: {command}"),
-    };
-  }
-
-  private static Task<string> ExecCommandAsync(long clientId, int port, CancellationToken cancellationToken)
-  {
-    if (!ClientMultiCache.TryGetValue(clientId, out var commands) || commands == null)
-    {
-      return CommandHepler.BuildErrorAsync("EXEC without MULTI");
+      return ExecCommandAsync(clientId, port, cancellationToken);
     }
 
-    ClientMultiCache.Remove(clientId);
-    return ExecCommand.ProcessAsync(commands, clientId, port, cancellationToken);
+    if (string.Equals(command, "DISCARD", StringComparison.OrdinalIgnoreCase))
+    {
+      return CommandHelper.BuildErrorAsync("DISCARD without MULTI");
+    }
+
+    Console.Error.WriteLine(command.ToUpper());
+    var redisCommand = _serviceProvider.GetKeyedService<IRedisCommand>(command.ToUpper());
+
+    if (redisCommand != null)
+    {
+      CommandExecutionContext context = new(clientId, port, cancellationToken, originalValue);
+      return redisCommand.ExecuteAsync(originalValue.ArrayValue ?? [], context);
+    }
+
+    return CommandHelper.BuildErrorAsync($"unknown command: {command}");
+  }
+
+  private async Task<string> ExecCommandAsync(long clientId, int port, CancellationToken cancellationToken)
+  {
+    if (!_clientMultiStore.TryGetValue(clientId, out var commands) || commands == null)
+    {
+      return CommandHelper.BuildError("EXEC without MULTI");
+    }
+
+    _clientMultiStore.Remove(clientId);
+
+    List<string> results = [];
+    foreach (RespValue command in commands)
+    {
+      string result = await ExecuteAsync(command, clientId, port, cancellationToken);
+      results.Add(result);
+    }
+
+    return CommandHelper.FormatArrayOfResp(results);
   }
 }

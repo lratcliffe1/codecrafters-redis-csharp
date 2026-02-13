@@ -1,15 +1,13 @@
 namespace codecrafters_redis.src.Resp;
 
-public static class RespParser
+public interface IRespParser
 {
-  public static RespValue Parse(string data)
-  {
-    int index = 0;
-    RespValue value = ParseValue(data, ref index);
-    return value;
-  }
+  bool TryParse(string data, out RespValue value, out int consumedLength);
+}
 
-  public static bool TryParse(string data, out RespValue value, out int consumedLength)
+public class RespParser : IRespParser
+{
+  public bool TryParse(string data, out RespValue value, out int consumedLength)
   {
     int index = 0;
 

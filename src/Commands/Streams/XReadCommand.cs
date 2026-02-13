@@ -4,42 +4,43 @@ using codecrafters_redis.src.Cache;
 using codecrafters_redis.src.Helpers;
 using codecrafters_redis.src.Resp;
 
-public static class XReadCommand
+public class XReadCommand(ICacheStore cacheStore) : IRedisCommand
 {
-  public static async Task<string> ProcessAsync(List<RespValue> args, CancellationToken cancellationToken = default)
+  public string Name => "XREAD";
+  public async Task<string> ExecuteAsync(List<RespValue> args, CommandExecutionContext context)
   {
     if (!TryParseArgs(args, out var streams, out var isBlocking, out var expirationMilliseconds))
     {
-      return CommandHepler.BuildError("wrong number of arguments for 'xread'");
+      return CommandHelper.BuildError("wrong number of arguments for 'xread'");
     }
 
-    streams = ResolveDollarIds(streams);
+    streams = ResolveDollarIds(streams, cacheStore);
 
-    var streamResponses = ReadStreamResponses(streams);
+    var streamResponses = ReadStreamResponses(streams, cacheStore);
     if (streamResponses.Count > 0)
     {
-      return CommandHepler.FormatArrayOfResp(streamResponses);
+      return CommandHelper.FormatArrayOfResp(streamResponses);
     }
 
     if (!isBlocking)
     {
-      return CommandHepler.FormatNull(RespType.Array);
+      return CommandHelper.FormatNull(RespType.Array);
     }
 
-    bool signaled = await Cache.WaitForStreamEntriesAsync(streams, expirationMilliseconds, cancellationToken);
+    bool signaled = await cacheStore.WaitForStreamEntriesAsync(streams, expirationMilliseconds, context.CancellationToken);
     if (!signaled)
     {
-      return CommandHepler.FormatNull(RespType.Array);
+      return CommandHelper.FormatNull(RespType.Array);
     }
 
-    streamResponses = ReadStreamResponses(streams);
+    streamResponses = ReadStreamResponses(streams, cacheStore);
 
     if (streamResponses.Count == 0)
     {
-      return CommandHepler.FormatNull(RespType.Array);
+      return CommandHelper.FormatNull(RespType.Array);
     }
 
-    return CommandHepler.FormatArrayOfResp(streamResponses);
+    return CommandHelper.FormatArrayOfResp(streamResponses);
   }
 
   private static bool TryParseArgs(
@@ -90,19 +91,19 @@ public static class XReadCommand
     return true;
   }
 
-  private static List<string> ReadStreamResponses(IReadOnlyList<(string key, string id)> streams)
+  private static List<string> ReadStreamResponses(IReadOnlyList<(string key, string id)> streams, ICacheStore cacheStore)
   {
     List<string> streamResponses = [];
 
     foreach (var stream in streams)
     {
-      if (Cache.TryGetValue(stream.key, out var cacheValue) && cacheValue != null && cacheValue.TryGetStream(out var entries) && entries.Count > 0)
+      if (cacheStore.TryGetValue(stream.key, out var cacheValue) && cacheValue != null && cacheValue.TryGetStream(out var entries) && entries.Count > 0)
       {
         var result = entries.Where(entry => StreamIdHelper.IsGreaterThan(entry.Id, stream.id)).ToList();
         if (result.Count > 0)
         {
-          var entriesResp = CommandHepler.FormatStreamEntries(result);
-          var streamResp = CommandHepler.FormatArrayOfResp([CommandHepler.FormatBulk(stream.key), entriesResp]);
+          var entriesResp = CommandHelper.FormatStreamEntries(result);
+          var streamResp = CommandHelper.FormatArrayOfResp([CommandHelper.FormatBulk(stream.key), entriesResp]);
           streamResponses.Add(streamResp);
         }
       }
@@ -111,7 +112,7 @@ public static class XReadCommand
     return streamResponses;
   }
 
-  private static List<(string key, string id)> ResolveDollarIds(IReadOnlyList<(string key, string id)> streams)
+  private static List<(string key, string id)> ResolveDollarIds(IReadOnlyList<(string key, string id)> streams, ICacheStore cacheStore)
   {
     List<(string key, string id)> resolved = [];
 
@@ -124,7 +125,7 @@ public static class XReadCommand
       }
 
       string currentId = "0-0";
-      if (Cache.TryGetValue(stream.key, out var cacheValue) && cacheValue != null && cacheValue.TryGetStream(out var entries) && entries.Count > 0)
+      if (cacheStore.TryGetValue(stream.key, out var cacheValue) && cacheValue != null && cacheValue.TryGetStream(out var entries) && entries.Count > 0)
       {
         currentId = entries.Last().Id;
       }

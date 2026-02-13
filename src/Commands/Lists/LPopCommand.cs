@@ -4,9 +4,10 @@ using codecrafters_redis.src.Cache;
 using codecrafters_redis.src.Helpers;
 using codecrafters_redis.src.Resp;
 
-public static class LPopCommand
+public class LPopCommand(ICacheStore cacheStore) : IRedisCommand
 {
-  public static Task<string> ProcessAsync(List<RespValue> args)
+  public string Name => "LPOP";
+  public Task<string> ExecuteAsync(List<RespValue> args, CommandExecutionContext context)
   {
     if (args.Count == 2)
     {
@@ -15,7 +16,7 @@ public static class LPopCommand
 
     if (args.Count != 3)
     {
-      return CommandHepler.BuildErrorAsync("wrong number of arguments for 'lpop'");
+      return CommandHelper.BuildErrorAsync("wrong number of arguments for 'lpop'");
     }
 
     string key = args[1].ToString();
@@ -23,20 +24,20 @@ public static class LPopCommand
 
     if (!int.TryParse(popCountRaw, out int popCount))
     {
-      return CommandHepler.BuildErrorAsync("invalid count for 'lpop'");
+      return CommandHelper.BuildErrorAsync("invalid count for 'lpop'");
     }
 
-    List<string>? removed = Cache.LPop(key, popCount);
+    List<string>? removed = cacheStore.LPop(key, popCount);
 
     if (removed == null)
     {
-      return CommandHepler.FormatNullAsync(RespType.BulkString);
+      return CommandHelper.FormatNullAsync(RespType.BulkString);
     }
     if (removed.Count == 1)
     {
-      return CommandHepler.FormatBulkAsync(removed[0]);
+      return CommandHelper.FormatBulkAsync(removed[0]);
     }
 
-    return CommandHepler.FormatArrayAsync(removed);
+    return CommandHelper.FormatArrayAsync(removed);
   }
 }
