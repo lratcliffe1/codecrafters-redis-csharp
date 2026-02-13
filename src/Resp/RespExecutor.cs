@@ -34,6 +34,11 @@ static class RespExecutor
         return CommandHepler.BuildErrorAsync("MULTI calls can not be nested");
       }
 
+      if (command == "DISCARD")
+      {
+        return DiscardHelper.ProcessAsync(clientId, cancellationToken);
+      }
+
       return MultiCommand.ProcessAsync(value, clientId);
     }
 
@@ -56,6 +61,7 @@ static class RespExecutor
       "XREAD" => XReadCommand.ProcessAsync(args, cancellationToken),
       "MULTI" => MultiCommand.ProcessAsync(null, clientId),
       "EXEC" => ExecCommandAsync(clientId, cancellationToken),
+      "DISCARD" => CommandHepler.BuildErrorAsync("DISCARD without MULTI"),
       _ => CommandHepler.BuildErrorAsync($"unknown command: {command}"),
     };
   }
