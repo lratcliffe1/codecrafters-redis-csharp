@@ -38,6 +38,7 @@ static class RespExecutor
       "XADD" => XAddCommand.ProcessAsync(args),
       "XRANGE" => XRangeCommand.ProcessAsync(args),
       "XREAD" => XReadCommand.ProcessAsync(args, cancellationToken),
+      "MULTI" => MultiCommand.ProcessAsync(args),
       _ => CommandHepler.BuildErrorAsync($"unknown command: {command}"),
     };
   }
