@@ -1,13 +1,25 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using codecrafters_redis.src.Cache;
 using codecrafters_redis.src.Helpers;
 using codecrafters_redis.src.Resp;
 
 int port = 6379;
+
 if (args.Length >= 2 && args[0].Equals("--port", StringComparison.InvariantCultureIgnoreCase) && int.TryParse(args[1], out port))
 {
   port = int.Parse(args[1]);
+}
+
+if (args.Length >= 4 && args[2].Equals("--replicaof", StringComparison.InvariantCultureIgnoreCase) && int.TryParse(args[3].Split(" ").Last(), out int replicaOf))
+{
+  ReplicaCache.Set(port, ReplicaType.Slave);
+  ReplicaCache.AddSlave(port, replicaOf);
+}
+else
+{
+  ReplicaCache.Set(port, ReplicaType.Master);
 }
 
 TcpListener? server = null;
@@ -26,7 +38,7 @@ try
   while (!shutdownTokenSource.Token.IsCancellationRequested)
   {
     TcpClient client = await server.AcceptTcpClientAsync(shutdownTokenSource.Token);
-    _ = HandleClientAsync(client, ClientIdAllocator.Next(), shutdownTokenSource.Token);
+    _ = HandleClientAsync(client, ClientIdAllocator.Next(), port, shutdownTokenSource.Token);
   }
 }
 catch (OperationCanceledException)
@@ -43,7 +55,7 @@ finally
   shutdownTokenSource.Dispose();
 }
 
-static async Task HandleClientAsync(TcpClient client, long clientId, CancellationToken serverCancellationToken)
+static async Task HandleClientAsync(TcpClient client, long clientId, int port, CancellationToken serverCancellationToken)
 {
   using TcpClient _ = client;
   using CancellationTokenSource connectionCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(serverCancellationToken);
@@ -67,7 +79,7 @@ static async Task HandleClientAsync(TcpClient client, long clientId, Cancellatio
 
       while (TryReadNextCommand(incomingBuffer, out RespValue? value))
       {
-        string response = await CommandEventLoop.ExecuteAsync(value!, clientId, cancellationToken);
+        string response = await CommandEventLoop.ExecuteAsync(value!, clientId, port, cancellationToken);
         byte[] message = Encoding.UTF8.GetBytes(response);
         await stream.WriteAsync(message, cancellationToken);
         await stream.FlushAsync(cancellationToken);
@@ -87,7 +99,7 @@ static async Task HandleClientAsync(TcpClient client, long clientId, Cancellatio
   }
   finally
   {
-    await CommandEventLoop.NotifyClientDisconnectedAsync(clientId);
+    await CommandEventLoop.NotifyClientDisconnectedAsync(clientId, port);
   }
 }
 

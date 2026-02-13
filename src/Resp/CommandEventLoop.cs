@@ -27,18 +27,18 @@ internal static class CommandEventLoop
 
   private static readonly Task _processorTask = Task.Run(ProcessLoopAsync);
 
-  public static async Task<string> ExecuteAsync(RespValue value, long clientId, CancellationToken cancellationToken)
+  public static async Task<string> ExecuteAsync(RespValue value, long clientId, int port, CancellationToken cancellationToken)
   {
     TaskCompletionSource<string> completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    CommandEnvelope envelope = new(EnvelopeType.Execute, value, clientId, completion, cancellationToken);
+    CommandEnvelope envelope = new(EnvelopeType.Execute, value, clientId, port, completion, cancellationToken);
 
     await _queue.Writer.WriteAsync(envelope, cancellationToken);
     return await completion.Task.WaitAsync(cancellationToken);
   }
 
-  public static ValueTask NotifyClientDisconnectedAsync(long clientId)
+  public static ValueTask NotifyClientDisconnectedAsync(long clientId, int port)
   {
-    CommandEnvelope envelope = new(EnvelopeType.ClientDisconnected, null, clientId, null, CancellationToken.None);
+    CommandEnvelope envelope = new(EnvelopeType.ClientDisconnected, null, clientId, port, null, CancellationToken.None);
     return _queue.Writer.WriteAsync(envelope);
   }
 
@@ -69,7 +69,7 @@ internal static class CommandEventLoop
     {
       Task<string> executionTask = _loopTaskFactory
         .StartNew(
-          () => LoopOwnerContext.RunOnOwnerLaneAsync(() => RespExecutor.ExecuteAsync(envelope.Value, envelope.ClientId, envelope.CancellationToken)),
+          () => LoopOwnerContext.RunOnOwnerLaneAsync(() => RespExecutor.ExecuteAsync(envelope.Value, envelope.ClientId, envelope.Port, envelope.CancellationToken)),
           envelope.CancellationToken)
         .Unwrap();
 
@@ -126,6 +126,7 @@ internal static class CommandEventLoop
     EnvelopeType Type,
     RespValue? Value,
     long ClientId,
+    int Port,
     TaskCompletionSource<string>? Completion,
     CancellationToken CancellationToken);
 }

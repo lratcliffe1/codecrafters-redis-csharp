@@ -5,12 +5,12 @@ using codecrafters_redis.src.Resp;
 
 public static class ExecCommand
 {
-  public static async Task<string> ProcessAsync(List<RespValue> args, long clientId, CancellationToken cancellationToken)
+  public static async Task<string> ProcessAsync(List<RespValue> args, long clientId, int port, CancellationToken cancellationToken)
   {
     List<string> results = [];
     foreach (RespValue arg in args)
     {
-      string result = await RespExecutor.ExecuteAsync(arg, clientId, cancellationToken);
+      string result = await RespExecutor.ExecuteAsync(arg, clientId, port, cancellationToken);
       results.Add(result);
     }
 

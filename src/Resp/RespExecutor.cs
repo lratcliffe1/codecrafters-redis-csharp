@@ -11,7 +11,7 @@ namespace codecrafters_redis.src.Resp;
 
 static class RespExecutor
 {
-  public static Task<string> ExecuteAsync(RespValue value, long clientId, CancellationToken cancellationToken = default)
+  public static Task<string> ExecuteAsync(RespValue value, long clientId, int port, CancellationToken cancellationToken = default)
   {
     if (!TryReadCommand(value, out List<RespValue>? args, out string command))
     {
@@ -20,10 +20,10 @@ static class RespExecutor
 
     if (ClientMultiCache.ContainsKey(clientId))
     {
-      return ExecuteInMultiAsync(value, command, clientId, cancellationToken);
+      return ExecuteInMultiAsync(value, command, clientId, port, cancellationToken);
     }
 
-    return ExecuteCommandAsync(args!, command, clientId, cancellationToken);
+    return ExecuteCommandAsync(args!, command, clientId, port, cancellationToken);
   }
 
   public static void OnClientDisconnected(long clientId)
@@ -48,11 +48,12 @@ static class RespExecutor
     RespValue originalValue,
     string command,
     long clientId,
+    int port,
     CancellationToken cancellationToken)
   {
     return command switch
     {
-      "EXEC" => ExecCommandAsync(clientId, cancellationToken),
+      "EXEC" => ExecCommandAsync(clientId, port, cancellationToken),
       "MULTI" => CommandHepler.BuildErrorAsync("MULTI calls can not be nested"),
       "DISCARD" => DiscardHelper.ProcessAsync(clientId, cancellationToken),
       _ => MultiCommand.ProcessAsync(originalValue, clientId),
@@ -63,6 +64,7 @@ static class RespExecutor
     List<RespValue> args,
     string command,
     long clientId,
+    int port,
     CancellationToken cancellationToken)
   {
     return command switch
@@ -83,14 +85,14 @@ static class RespExecutor
       "XRANGE" => XRangeCommand.ProcessAsync(args),
       "XREAD" => XReadCommand.ProcessAsync(args, cancellationToken),
       "MULTI" => MultiCommand.ProcessAsync(null, clientId),
-      "EXEC" => ExecCommandAsync(clientId, cancellationToken),
+      "EXEC" => ExecCommandAsync(clientId, port, cancellationToken),
       "DISCARD" => CommandHepler.BuildErrorAsync("DISCARD without MULTI"),
-      "INFO" => InfoCommand.ProcessAsync(args),
+      "INFO" => InfoCommand.ProcessAsync(args, port),
       _ => CommandHepler.BuildErrorAsync($"unknown command: {command}"),
     };
   }
 
-  private static Task<string> ExecCommandAsync(long clientId, CancellationToken cancellationToken)
+  private static Task<string> ExecCommandAsync(long clientId, int port, CancellationToken cancellationToken)
   {
     if (!ClientMultiCache.TryGetValue(clientId, out var commands) || commands == null)
     {
@@ -98,6 +100,6 @@ static class RespExecutor
     }
 
     ClientMultiCache.Remove(clientId);
-    return ExecCommand.ProcessAsync(commands, clientId, cancellationToken);
+    return ExecCommand.ProcessAsync(commands, clientId, port, cancellationToken);
   }
 }
