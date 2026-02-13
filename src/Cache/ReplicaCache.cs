@@ -4,7 +4,7 @@ namespace codecrafters_redis.src.Cache;
 
 public static class ReplicaCache
 {
-  private static readonly Dictionary<int, ReplicaCacheEntry> _replicaCache = new();
+  private static readonly ConcurrentDictionary<int, ReplicaCacheEntry> _replicaCache = new();
 
   public static void Set(int key, ReplicaType type)
   {
