@@ -12,36 +12,58 @@ static class RespExecutor
 {
   public static Task<string> ExecuteAsync(RespValue value, long clientId, CancellationToken cancellationToken = default)
   {
-    if (value.Type != RespType.Array || value.ArrayValue == null || value.ArrayValue.Count == 0)
+    if (!TryReadCommand(value, out List<RespValue>? args, out string command))
     {
       return CommandHepler.BuildErrorAsync("expected array command");
     }
 
-    List<RespValue> args = value.ArrayValue;
-    string command = args[0].ToString();
-
-    command = command.ToUpperInvariant();
-
     if (ClientMultiCache.ContainsKey(clientId))
     {
-      if (command == "EXEC")
-      {
-        return ExecCommandAsync(clientId, cancellationToken);
-      }
-
-      if (command == "MULTI")
-      {
-        return CommandHepler.BuildErrorAsync("MULTI calls can not be nested");
-      }
-
-      if (command == "DISCARD")
-      {
-        return DiscardHelper.ProcessAsync(clientId, cancellationToken);
-      }
-
-      return MultiCommand.ProcessAsync(value, clientId);
+      return ExecuteInMultiAsync(value, command, clientId, cancellationToken);
     }
 
+    return ExecuteCommandAsync(args!, command, clientId, cancellationToken);
+  }
+
+  public static void OnClientDisconnected(long clientId)
+  {
+    ClientMultiCache.Remove(clientId);
+  }
+
+  private static bool TryReadCommand(RespValue value, out List<RespValue>? args, out string command)
+  {
+    command = string.Empty;
+    args = value.ArrayValue;
+    if (value.Type != RespType.Array || args == null || args.Count == 0)
+    {
+      return false;
+    }
+
+    command = args[0].ToString().ToUpperInvariant();
+    return true;
+  }
+
+  private static Task<string> ExecuteInMultiAsync(
+    RespValue originalValue,
+    string command,
+    long clientId,
+    CancellationToken cancellationToken)
+  {
+    return command switch
+    {
+      "EXEC" => ExecCommandAsync(clientId, cancellationToken),
+      "MULTI" => CommandHepler.BuildErrorAsync("MULTI calls can not be nested"),
+      "DISCARD" => DiscardHelper.ProcessAsync(clientId, cancellationToken),
+      _ => MultiCommand.ProcessAsync(originalValue, clientId),
+    };
+  }
+
+  private static Task<string> ExecuteCommandAsync(
+    List<RespValue> args,
+    string command,
+    long clientId,
+    CancellationToken cancellationToken)
+  {
     return command switch
     {
       "PING" => PingCommand.ProcessAsync(args),

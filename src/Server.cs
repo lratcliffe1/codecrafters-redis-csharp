@@ -1,8 +1,13 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using codecrafters_redis.src.Cache;
 using codecrafters_redis.src.Resp;
+
+int port = 6379;
+if (args.Length >= 2 && args[0].Equals("--port", StringComparison.InvariantCultureIgnoreCase) && int.TryParse(args[1], out port))
+{
+  port = int.Parse(args[1]);
+}
 
 TcpListener? server = null;
 CancellationTokenSource shutdownTokenSource = new();
@@ -14,7 +19,7 @@ Console.CancelKeyPress += (_, eventArgs) =>
 
 try
 {
-  server = new TcpListener(IPAddress.Any, 6379);
+  server = new TcpListener(IPAddress.Any, port);
   server.Start();
 
   while (!shutdownTokenSource.Token.IsCancellationRequested)
@@ -81,7 +86,7 @@ static async Task HandleClientAsync(TcpClient client, long clientId, Cancellatio
   }
   finally
   {
-    ClientMultiCache.Remove(clientId);
+    await CommandEventLoop.NotifyClientDisconnectedAsync(clientId);
   }
 }
 
