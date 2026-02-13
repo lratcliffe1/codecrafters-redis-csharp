@@ -2,6 +2,7 @@ using codecrafters_redis.src.Cache;
 using codecrafters_redis.src.Commands.General;
 using codecrafters_redis.src.Commands.Lists;
 using codecrafters_redis.src.Commands.Multi;
+using codecrafters_redis.src.Commands.Replication;
 using codecrafters_redis.src.Commands.Streams;
 using codecrafters_redis.src.Commands.Strings;
 using codecrafters_redis.src.Helpers;
@@ -84,6 +85,7 @@ static class RespExecutor
       "MULTI" => MultiCommand.ProcessAsync(null, clientId),
       "EXEC" => ExecCommandAsync(clientId, cancellationToken),
       "DISCARD" => CommandHepler.BuildErrorAsync("DISCARD without MULTI"),
+      "INFO" => InfoCommand.ProcessAsync(args),
       _ => CommandHepler.BuildErrorAsync($"unknown command: {command}"),
     };
   }

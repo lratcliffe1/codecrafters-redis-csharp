@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using codecrafters_redis.src.Helpers;
 using codecrafters_redis.src.Resp;
 
 int port = 6379;
@@ -79,7 +80,7 @@ static async Task HandleClientAsync(TcpClient client, long clientId, Cancellatio
   }
   catch (InvalidOperationException exception)
   {
-    string error = $"-ERR protocol error: {exception.Message}\r\n";
+    string error = CommandHepler.BuildError($"protocol error: {exception.Message}");
     byte[] message = Encoding.UTF8.GetBytes(error);
     await stream.WriteAsync(message, serverCancellationToken);
     await stream.FlushAsync(serverCancellationToken);
