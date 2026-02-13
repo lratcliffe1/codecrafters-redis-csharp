@@ -5,8 +5,15 @@ using codecrafters_redis.src.Resp;
 
 public static class ExecCommand
 {
-  public static Task<string> ProcessAsync(List<RespValue> args)
+  public static async Task<string> ProcessAsync(List<RespValue> args, long clientId, CancellationToken cancellationToken)
   {
-    return CommandHepler.BuildErrorAsync("EXEC without MULTI");
+    List<string> results = [];
+    foreach (RespValue arg in args)
+    {
+      string result = await RespExecutor.ExecuteAsync(arg, clientId, cancellationToken);
+      results.Add(result);
+    }
+
+    return CommandHepler.FormatArrayOfResp(results);
   }
 }

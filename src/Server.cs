@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using codecrafters_redis.src.Cache;
 using codecrafters_redis.src.Resp;
 
 TcpListener? server = null;
@@ -19,7 +20,7 @@ try
   while (!shutdownTokenSource.Token.IsCancellationRequested)
   {
     TcpClient client = await server.AcceptTcpClientAsync(shutdownTokenSource.Token);
-    _ = HandleClientAsync(client, shutdownTokenSource.Token);
+    _ = HandleClientAsync(client, ClientIdAllocator.Next(), shutdownTokenSource.Token);
   }
 }
 catch (OperationCanceledException)
@@ -36,7 +37,7 @@ finally
   shutdownTokenSource.Dispose();
 }
 
-static async Task HandleClientAsync(TcpClient client, CancellationToken serverCancellationToken)
+static async Task HandleClientAsync(TcpClient client, long clientId, CancellationToken serverCancellationToken)
 {
   using TcpClient _ = client;
   using CancellationTokenSource connectionCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(serverCancellationToken);
@@ -60,7 +61,7 @@ static async Task HandleClientAsync(TcpClient client, CancellationToken serverCa
 
       while (TryReadNextCommand(incomingBuffer, out RespValue? value))
       {
-        string response = await CommandEventLoop.ExecuteAsync(value!, cancellationToken);
+        string response = await CommandEventLoop.ExecuteAsync(value!, clientId, cancellationToken);
         byte[] message = Encoding.UTF8.GetBytes(response);
         await stream.WriteAsync(message, cancellationToken);
         await stream.FlushAsync(cancellationToken);
@@ -78,6 +79,10 @@ static async Task HandleClientAsync(TcpClient client, CancellationToken serverCa
     await stream.WriteAsync(message, serverCancellationToken);
     await stream.FlushAsync(serverCancellationToken);
   }
+  finally
+  {
+    ClientMultiCache.Remove(clientId);
+  }
 }
 
 static bool TryReadNextCommand(StringBuilder buffer, out RespValue? value)
@@ -92,4 +97,14 @@ static bool TryReadNextCommand(StringBuilder buffer, out RespValue? value)
   buffer.Remove(0, consumedLength);
   value = parsedValue;
   return true;
+}
+
+internal static class ClientIdAllocator
+{
+  private static long _nextClientId;
+
+  public static long Next()
+  {
+    return Interlocked.Increment(ref _nextClientId);
+  }
 }

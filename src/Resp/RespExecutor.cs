@@ -1,3 +1,4 @@
+using codecrafters_redis.src.Cache;
 using codecrafters_redis.src.Commands.General;
 using codecrafters_redis.src.Commands.Lists;
 using codecrafters_redis.src.Commands.Multi;
@@ -9,7 +10,7 @@ namespace codecrafters_redis.src.Resp;
 
 static class RespExecutor
 {
-  public static Task<string> ExecuteAsync(RespValue value, CancellationToken cancellationToken = default)
+  public static Task<string> ExecuteAsync(RespValue value, long clientId, CancellationToken cancellationToken = default)
   {
     if (value.Type != RespType.Array || value.ArrayValue == null || value.ArrayValue.Count == 0)
     {
@@ -20,6 +21,21 @@ static class RespExecutor
     string command = args[0].ToString();
 
     command = command.ToUpperInvariant();
+
+    if (ClientMultiCache.ContainsKey(clientId))
+    {
+      if (command == "EXEC")
+      {
+        return ExecCommandAsync(clientId, cancellationToken);
+      }
+
+      if (command == "MULTI")
+      {
+        return CommandHepler.BuildErrorAsync("MULTI calls can not be nested");
+      }
+
+      return MultiCommand.ProcessAsync(value, clientId);
+    }
 
     return command switch
     {
@@ -38,9 +54,20 @@ static class RespExecutor
       "XADD" => XAddCommand.ProcessAsync(args),
       "XRANGE" => XRangeCommand.ProcessAsync(args),
       "XREAD" => XReadCommand.ProcessAsync(args, cancellationToken),
-      "MULTI" => MultiCommand.ProcessAsync(args),
-      "EXEC" => ExecCommand.ProcessAsync(args),
+      "MULTI" => MultiCommand.ProcessAsync(null, clientId),
+      "EXEC" => ExecCommandAsync(clientId, cancellationToken),
       _ => CommandHepler.BuildErrorAsync($"unknown command: {command}"),
     };
+  }
+
+  private static Task<string> ExecCommandAsync(long clientId, CancellationToken cancellationToken)
+  {
+    if (!ClientMultiCache.TryGetValue(clientId, out var commands) || commands == null)
+    {
+      return CommandHepler.BuildErrorAsync("EXEC without MULTI");
+    }
+
+    ClientMultiCache.Remove(clientId);
+    return ExecCommand.ProcessAsync(commands, clientId, cancellationToken);
   }
 }

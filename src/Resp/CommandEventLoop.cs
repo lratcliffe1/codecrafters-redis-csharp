@@ -21,10 +21,10 @@ internal static class CommandEventLoop
 
   private static readonly Task _processorTask = Task.Run(ProcessLoopAsync);
 
-  public static async Task<string> ExecuteAsync(RespValue value, CancellationToken cancellationToken)
+  public static async Task<string> ExecuteAsync(RespValue value, long clientId, CancellationToken cancellationToken)
   {
     TaskCompletionSource<string> completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
-    CommandEnvelope envelope = new(value, completion, cancellationToken);
+    CommandEnvelope envelope = new(value, clientId, completion, cancellationToken);
 
     await _queue.Writer.WriteAsync(envelope, cancellationToken);
     return await completion.Task.WaitAsync(cancellationToken);
@@ -38,7 +38,7 @@ internal static class CommandEventLoop
       {
         Task<string> executionTask = _loopTaskFactory
           .StartNew(
-            () => LoopOwnerContext.RunOnOwnerLaneAsync(() => RespExecutor.ExecuteAsync(envelope.Value, envelope.CancellationToken)),
+            () => LoopOwnerContext.RunOnOwnerLaneAsync(() => RespExecutor.ExecuteAsync(envelope.Value, envelope.ClientId, envelope.CancellationToken)),
             envelope.CancellationToken)
           .Unwrap();
 
@@ -81,6 +81,7 @@ internal static class CommandEventLoop
 
   private sealed record CommandEnvelope(
     RespValue Value,
+    long ClientId,
     TaskCompletionSource<string> Completion,
     CancellationToken CancellationToken);
 }
