@@ -8,6 +8,6 @@ public sealed class PsyncCommand : IRedisCommand
   public string Name => "PSYNC";
   public Task<string> ExecuteAsync(List<RespValue> args, CommandExecutionContext context)
   {
-    return Task.FromResult(CommandHelper.FormatSimple("+FULLRESYNC " + ReplicationID.Get() + " 0"));
+    return Task.FromResult(CommandHelper.FormatSimple("FULLRESYNC " + ReplicationID.Get() + " 0"));
   }
 }

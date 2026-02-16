@@ -35,6 +35,10 @@ public sealed class HandshakeCoordinator(ServerOptions serverOptions) : IHandsha
     // 4. Send PSYNC and WAIT for "+FULLRESYNC <REPL_ID> 0\r\n"
     await SendCommandAsync(stream, ["PSYNC", "?", "-1"], cancellationToken);
     _ = await stream.ReadAsync(buffer, cancellationToken);
+
+    // 5. Receive RDB file  
+    int rdbFile = await stream.ReadAsync(buffer, cancellationToken);
+    Console.Error.WriteLine(Encoding.UTF8.GetString(buffer, 0, rdbFile));
   }
 
   private static async Task SendCommandAsync(NetworkStream stream, string[] command, CancellationToken ct)

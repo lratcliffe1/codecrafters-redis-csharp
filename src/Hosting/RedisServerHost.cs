@@ -119,6 +119,11 @@ public sealed class RedisServerHost(
           byte[] message = Encoding.UTF8.GetBytes(response);
           await stream.WriteAsync(message, cancellationToken);
           await stream.FlushAsync(cancellationToken);
+
+          if (response.StartsWith("+FULLRESYNC"))
+          {
+            await SendRDBFileAsync(stream, cancellationToken);
+          }
         }
       }
     }
@@ -151,5 +156,18 @@ public sealed class RedisServerHost(
     buffer.Remove(0, consumedLength);
     value = parsedValue;
     return true;
+  }
+
+  private async Task SendRDBFileAsync(NetworkStream stream, CancellationToken cancellationToken)
+  {
+    string hexData = "524544495330303131fa0972656469732d76657205372e322e30fa0a72656469732d62697473c040fa056374696d65c26d08bc65fa08757365642d6d656dc2b0c41000fa08616f662d62617365c000fff06e3bfec0ff5a62";
+    byte[] rdbFileInBinary = Convert.FromHexString(hexData);
+
+    string header = $"${rdbFileInBinary.Length}\r\n";
+    byte[] headerBytes = Encoding.UTF8.GetBytes(header);
+
+    await stream.WriteAsync(headerBytes, cancellationToken);
+    await stream.WriteAsync(rdbFileInBinary, cancellationToken);
+    await stream.FlushAsync(cancellationToken);
   }
 }
