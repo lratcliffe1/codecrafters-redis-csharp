@@ -32,6 +32,10 @@ public sealed class HandshakeCoordinator(ServerOptions serverOptions) : IHandsha
     // 3. Send REPLCONF capa and WAIT for "+OK"
     await SendCommandAsync(stream, ["REPLCONF", "capa", "psync2"], cancellationToken);
     _ = await stream.ReadAsync(buffer, cancellationToken);
+
+    // 4. Send PSYNC and WAIT for "+FULLRESYNC <REPL_ID> 0\r\n"
+    await SendCommandAsync(stream, ["PSYNC", "?", "-1"], cancellationToken);
+    _ = await stream.ReadAsync(buffer, cancellationToken);
   }
 
   private static async Task SendCommandAsync(NetworkStream stream, string[] command, CancellationToken ct)
