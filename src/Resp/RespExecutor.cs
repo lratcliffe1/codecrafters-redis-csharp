@@ -90,7 +90,6 @@ public sealed class RespExecutor(
       return CommandHelper.BuildErrorAsync("DISCARD without MULTI");
     }
 
-    Console.Error.WriteLine(command.ToUpper());
     var redisCommand = _serviceProvider.GetKeyedService<IRedisCommand>(command.ToUpper());
 
     if (redisCommand != null)
