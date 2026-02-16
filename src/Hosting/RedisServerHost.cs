@@ -18,13 +18,15 @@ public sealed class RedisServerHost(
   IReplicaStore replicaStore,
   ICommandEventLoop commandEventLoop,
   IRespParser respParser,
-  IClientIdAllocator clientIdAllocator) : IRedisServerHost
+  IClientIdAllocator clientIdAllocator,
+  IHandshakeCoordinator handshakeCoordinator) : IRedisServerHost
 {
   private readonly ServerOptions _serverOptions = serverOptions;
   private readonly IReplicaStore _replicaStore = replicaStore;
   private readonly ICommandEventLoop _commandEventLoop = commandEventLoop;
   private readonly IRespParser _respParser = respParser;
   private readonly IClientIdAllocator _clientIdAllocator = clientIdAllocator;
+  private readonly IHandshakeCoordinator _handshakeCoordinator = handshakeCoordinator;
 
   public async Task RunAsync(CancellationToken cancellationToken = default)
   {
@@ -38,6 +40,8 @@ public sealed class RedisServerHost(
     {
       server = new TcpListener(IPAddress.Any, _serverOptions.Port);
       server.Start();
+
+      await SendHandshakeAsync(cancellationToken);
 
       while (!shutdownTokenSource.Token.IsCancellationRequested)
       {
@@ -67,6 +71,18 @@ public sealed class RedisServerHost(
     {
       eventArgs.Cancel = true;
       shutdownTokenSource.Cancel();
+    }
+  }
+
+  private async Task SendHandshakeAsync(CancellationToken cancellationToken)
+  {
+    if (_serverOptions.IsReplica)
+    {
+      await _handshakeCoordinator.SendHandshakeToMasterAsync(_serverOptions.ReplicaOfPort!.Value, cancellationToken);
+    }
+    else
+    {
+      await _handshakeCoordinator.SendHandshakeToSlavesAsync(cancellationToken);
     }
   }
 
