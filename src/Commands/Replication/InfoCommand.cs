@@ -54,13 +54,13 @@ public sealed class InfoCommand(IReplicaStore replicaStore) : IRedisCommand
     if (replicaStore.TryGetValue(port, out var entry) && entry != null)
     {
       return ($"role:{entry.Type}\r\n"
-        + $"master_replid:8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb\r\n"
+        + $"master_replid:{ReplicationID.Get()}\r\n"
         + $"master_repl_offset:0\r\n")
       .ToLowerInvariant();
     }
 
     return ("role:master\r\n"
-      + $"master_replid:8371b4fb1155b71f4a04d3e1bc3e18c4a990aeeb\r\n"
+      + $"master_replid:{ReplicationID.Get()}\r\n"
       + $"master_repl_offset:0\r\n")
       .ToLowerInvariant();
   }

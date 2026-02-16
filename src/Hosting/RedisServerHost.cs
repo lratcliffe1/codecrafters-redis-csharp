@@ -80,10 +80,6 @@ public sealed class RedisServerHost(
     {
       await _handshakeCoordinator.SendHandshakeToMasterAsync(_serverOptions.ReplicaOfPort!.Value, cancellationToken);
     }
-    else
-    {
-      await _handshakeCoordinator.SendHandshakeToSlavesAsync(cancellationToken);
-    }
   }
 
   private void InitializeReplicaState()

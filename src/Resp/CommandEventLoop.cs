@@ -34,10 +34,11 @@ internal sealed class CommandEventLoop : ICommandEventLoop, IAsyncDisposable
   {
     _respExecutor = respExecutor;
     _loopTaskFactory = new TaskFactory(
-    CancellationToken.None,
-    TaskCreationOptions.DenyChildAttach,
-    TaskContinuationOptions.None,
-    _loopSchedulerPair.ExclusiveScheduler);
+      CancellationToken.None,
+      TaskCreationOptions.DenyChildAttach,
+      TaskContinuationOptions.None,
+      _loopSchedulerPair.ExclusiveScheduler);
+
     _processorTask = Task.Run(ProcessLoopAsync);
   }
 

@@ -8,7 +8,6 @@ namespace codecrafters_redis.src.Hosting;
 public interface IHandshakeCoordinator
 {
   Task SendHandshakeToMasterAsync(int replicaOfPort, CancellationToken cancellationToken);
-  Task SendHandshakeToSlavesAsync(CancellationToken cancellationToken);
 }
 
 public sealed class HandshakeCoordinator(ServerOptions serverOptions) : IHandshakeCoordinator
@@ -43,10 +42,5 @@ public sealed class HandshakeCoordinator(ServerOptions serverOptions) : IHandsha
     byte[] data = Encoding.UTF8.GetBytes(CommandHelper.FormatArray(command));
     await stream.WriteAsync(data, ct);
     await stream.FlushAsync(ct);
-  }
-
-
-  public async Task SendHandshakeToSlavesAsync(CancellationToken cancellationToken)
-  {
   }
 }
