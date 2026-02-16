@@ -60,6 +60,7 @@ public static class ServiceCollectionExtensions
     services.AddKeyedSingleton<IRedisCommand, DiscardCommand>("DISCARD");
 
     services.AddKeyedSingleton<IRedisCommand, InfoCommand>("INFO");
+    services.AddKeyedSingleton<IRedisCommand, ReplconfCommand>("REPLCONF");
 
     services.AddKeyedSingleton<IRedisCommand, XAddCommand>("XADD");
     services.AddKeyedSingleton<IRedisCommand, XRangeCommand>("XRANGE");
