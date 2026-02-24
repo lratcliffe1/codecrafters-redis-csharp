@@ -1,5 +1,3 @@
-using System.Threading;
-
 namespace codecrafters_redis.src.Bootstrap;
 
 public interface IServerOptions

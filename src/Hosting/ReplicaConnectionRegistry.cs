@@ -9,6 +9,7 @@ public interface IReplicaConnectionRegistry
   void RegisterReplica(long clientId, NetworkStream stream);
   void UnregisterReplica(long clientId);
   Task PropagateAsync(string encodedCommand, CancellationToken cancellationToken);
+  int GetReplicaCount();
 }
 
 public sealed class ReplicaConnectionRegistry : IReplicaConnectionRegistry
@@ -67,4 +68,6 @@ public sealed class ReplicaConnectionRegistry : IReplicaConnectionRegistry
       _writeLock.Release();
     }
   }
+
+  public int GetReplicaCount() => _replicaStreams.Count;
 }
