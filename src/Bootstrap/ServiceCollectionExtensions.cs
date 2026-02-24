@@ -61,6 +61,7 @@ public static class ServiceCollectionExtensions
     services.AddKeyedSingleton<IRedisCommand, InfoCommand>("INFO");
     services.AddKeyedSingleton<IRedisCommand, ReplconfCommand>("REPLCONF");
     services.AddKeyedSingleton<IRedisCommand, PsyncCommand>("PSYNC");
+    services.AddKeyedSingleton<IRedisCommand, WaitCommand>("WAIT");
 
     services.AddKeyedSingleton<IRedisCommand, XAddCommand>("XADD");
     services.AddKeyedSingleton<IRedisCommand, XRangeCommand>("XRANGE");
