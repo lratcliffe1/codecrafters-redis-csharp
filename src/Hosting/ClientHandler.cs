@@ -66,7 +66,7 @@ public sealed class ClientHandler(
           TryReadCommandName(value, out string command);
           string response = await _commandEventLoop.ExecuteAsync(value, clientId, _serverOptions.Port, cancellationToken);
 
-          if (!suppressResponse)
+          if (ShouldSendResponse(suppressResponse, command, value))
           {
             byte[] message = Encoding.UTF8.GetBytes(response);
             await stream.WriteAsync(message, cancellationToken);
@@ -156,6 +156,26 @@ public sealed class ClientHandler(
   private static bool IsWriteCommand(string command)
   {
     return WriteCommands.Contains(command);
+  }
+
+  private static bool ShouldSendResponse(bool suppressResponse, string command, RespValue value)
+  {
+    if (!suppressResponse)
+    {
+      return true;
+    }
+
+    return IsGetAckRequest(command, value);
+  }
+
+  private static bool IsGetAckRequest(string command, RespValue value)
+  {
+    if (!string.Equals(command, "REPLCONF", StringComparison.Ordinal) || value.ArrayValue == null || value.ArrayValue.Count < 2)
+    {
+      return false;
+    }
+
+    return string.Equals(value.ArrayValue[1].ToString(), "GETACK", StringComparison.OrdinalIgnoreCase);
   }
 
   private static bool IsFullResyncResponse(string response)
