@@ -38,9 +38,8 @@ public static class ServiceCollectionExtensions
 
   private static void AddStores(IServiceCollection services)
   {
-    services.AddSingleton<IReplicaStore, ReplicaStore>();
-    services.AddSingleton<IClientMultiStore, ClientMultiStore>();
     services.AddSingleton<ICacheStore, Cache.Cache>();
+    services.AddSingleton<IClientMultiStore, ClientMultiStore>();
   }
 
   private static void AddKeyedCommands(IServiceCollection services)
@@ -77,6 +76,8 @@ public static class ServiceCollectionExtensions
     services.AddSingleton<IRedisServerHost, RedisServerHost>();
     services.AddSingleton<IClientIdAllocator, ClientIdAllocator>();
     services.AddSingleton<IHandshakeCoordinator, HandshakeCoordinator>();
+    services.AddSingleton<IClientHandler, ClientHandler>();
+    services.AddSingleton<IReplicaConnectionRegistry, ReplicaConnectionRegistry>();
     services.AddSingleton<IRespParser, RespParser>();
     services.AddSingleton<ICommandEventLoop, CommandEventLoop>();
     services.AddSingleton<IRespExecutor, RespExecutor>();

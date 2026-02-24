@@ -1,0 +1,165 @@
+using System.Net.Sockets;
+using System.Text;
+using codecrafters_redis.src.Bootstrap;
+using codecrafters_redis.src.Helpers;
+using codecrafters_redis.src.Resp;
+
+namespace codecrafters_redis.src.Hosting;
+
+public interface IClientHandler
+{
+  Task HandleClientAsync(TcpClient client, long clientId, CancellationToken serverCancellationToken, bool suppressResponse = false);
+}
+
+public sealed class ClientHandler(
+  ICommandEventLoop commandEventLoop,
+  IRespParser respParser,
+  ServerOptions serverOptions,
+  IReplicaConnectionRegistry replicaConnectionRegistry) : IClientHandler
+{
+  private readonly ICommandEventLoop _commandEventLoop = commandEventLoop;
+  private readonly IRespParser _respParser = respParser;
+  private readonly ServerOptions _serverOptions = serverOptions;
+  private readonly IReplicaConnectionRegistry _replicaConnectionRegistry = replicaConnectionRegistry;
+
+  private static readonly HashSet<string> WriteCommands = new(StringComparer.Ordinal)
+  {
+    "SET",
+    "DEL",
+    "INCR",
+    "LPUSH",
+    "RPUSH",
+    "LPOP",
+    "BLPOP",
+    "XADD",
+  };
+
+  public async Task HandleClientAsync(TcpClient client, long clientId, CancellationToken serverCancellationToken, bool suppressResponse = false)
+  {
+    using TcpClient _ = client;
+    using CancellationTokenSource connectionCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(serverCancellationToken);
+    CancellationToken cancellationToken = connectionCancellationTokenSource.Token;
+
+    byte[] bytes = new byte[4096];
+    StringBuilder incomingBuffer = new();
+    NetworkStream stream = client.GetStream();
+
+    try
+    {
+      while (true)
+      {
+        int bytesRead = await stream.ReadAsync(bytes, cancellationToken);
+        if (bytesRead == 0)
+        {
+          break;
+        }
+
+        incomingBuffer.Append(Encoding.ASCII.GetString(bytes, 0, bytesRead));
+
+        while (TryReadNextCommand(incomingBuffer, out RespValue? value))
+        {
+          if (value == null)
+          {
+            continue;
+          }
+
+          TryReadCommandName(value, out string command);
+          string response = await _commandEventLoop.ExecuteAsync(value, clientId, _serverOptions.Port, cancellationToken);
+
+          if (!suppressResponse)
+          {
+            byte[] message = Encoding.UTF8.GetBytes(response);
+            await stream.WriteAsync(message, cancellationToken);
+            await stream.FlushAsync(cancellationToken);
+          }
+
+          if (IsFullResyncResponse(response))
+          {
+            await SendRDBFileAsync(stream, cancellationToken);
+            _replicaConnectionRegistry.RegisterReplica(clientId, stream);
+            continue;
+          }
+
+          if (suppressResponse || response.StartsWith("-ERR", StringComparison.Ordinal))
+          {
+            continue;
+          }
+
+          if (IsWriteCommand(command))
+          {
+            string encodedCommand = RespEncoder.Encode(value);
+            await _replicaConnectionRegistry.PropagateAsync(encodedCommand, cancellationToken);
+          }
+        }
+      }
+    }
+    catch (OperationCanceledException)
+    {
+      // Connection was terminated.
+    }
+    catch (InvalidOperationException exception)
+    {
+      if (!suppressResponse)
+      {
+        string error = CommandHelper.BuildError($"protocol error: {exception.Message}");
+        byte[] message = Encoding.UTF8.GetBytes(error);
+        await stream.WriteAsync(message, serverCancellationToken);
+        await stream.FlushAsync(serverCancellationToken);
+      }
+    }
+    finally
+    {
+      _replicaConnectionRegistry.UnregisterReplica(clientId);
+      await _commandEventLoop.NotifyClientDisconnectedAsync(clientId, _serverOptions.Port);
+    }
+  }
+
+  private bool TryReadNextCommand(StringBuilder buffer, out RespValue? value)
+  {
+    string data = buffer.ToString();
+    if (!_respParser.TryParse(data, out RespValue parsedValue, out int consumedLength))
+    {
+      value = null;
+      return false;
+    }
+
+    buffer.Remove(0, consumedLength);
+    value = parsedValue;
+    return true;
+  }
+
+  private static async Task SendRDBFileAsync(NetworkStream stream, CancellationToken cancellationToken)
+  {
+    string hexData = "524544495330303131fa0972656469732d76657205372e322e30fa0a72656469732d62697473c040fa056374696d65c26d08bc65fa08757365642d6d656dc2b0c41000fa08616f662d62617365c000fff06e3bfec0ff5a62";
+    byte[] rdbFileInBinary = Convert.FromHexString(hexData);
+
+    string header = $"${rdbFileInBinary.Length}\r\n";
+    byte[] headerBytes = Encoding.UTF8.GetBytes(header);
+
+    await stream.WriteAsync(headerBytes, cancellationToken);
+    await stream.WriteAsync(rdbFileInBinary, cancellationToken);
+    await stream.FlushAsync(cancellationToken);
+  }
+
+  private static bool TryReadCommandName(RespValue value, out string command)
+  {
+    command = string.Empty;
+    if (value.Type != RespType.Array || value.ArrayValue == null || value.ArrayValue.Count == 0)
+    {
+      return false;
+    }
+
+    command = value.ArrayValue[0].ToString().ToUpperInvariant();
+    return !string.IsNullOrWhiteSpace(command);
+  }
+
+  private static bool IsWriteCommand(string command)
+  {
+    return WriteCommands.Contains(command);
+  }
+
+  private static bool IsFullResyncResponse(string response)
+  {
+    return response.StartsWith("+FULLRESYNC", StringComparison.Ordinal);
+  }
+}
