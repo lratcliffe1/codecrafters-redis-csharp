@@ -7,7 +7,6 @@ public interface ICommandEventLoop
 {
   Task<string> ExecuteAsync(RespValue value, long clientId, int port, CancellationToken cancellationToken);
   ValueTask NotifyClientDisconnectedAsync(long clientId, int port);
-
   ValueTask DisposeAsync();
 }
 

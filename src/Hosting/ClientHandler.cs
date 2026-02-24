@@ -2,6 +2,7 @@ using System.Net.Sockets;
 using System.Text;
 using codecrafters_redis.src.Bootstrap;
 using codecrafters_redis.src.Helpers;
+using codecrafters_redis.src.Replication;
 using codecrafters_redis.src.Resp;
 
 namespace codecrafters_redis.src.Hosting;
@@ -167,7 +168,7 @@ public sealed class ClientHandler(
   {
     if (!suppressResponse)
     {
-      return true;
+      return !IsAckResponse(command, value);
     }
 
     return IsGetAckRequest(command, value);
@@ -181,6 +182,16 @@ public sealed class ClientHandler(
     }
 
     return string.Equals(value.ArrayValue[1].ToString(), "GETACK", StringComparison.OrdinalIgnoreCase);
+  }
+
+  private static bool IsAckResponse(string command, RespValue value)
+  {
+    if (!string.Equals(command, "REPLCONF", StringComparison.Ordinal) || value.ArrayValue == null || value.ArrayValue.Count < 2)
+    {
+      return false;
+    }
+
+    return string.Equals(value.ArrayValue[1].ToString(), "ACK", StringComparison.OrdinalIgnoreCase);
   }
 
   private static bool IsFullResyncResponse(string response)

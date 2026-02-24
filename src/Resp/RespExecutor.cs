@@ -62,7 +62,7 @@ public sealed class RespExecutor(
     int port,
     CancellationToken cancellationToken)
   {
-    CommandExecutionContext context = new(clientId, port, cancellationToken, originalValue);
+    CommandExecutionContext context = new(clientId, port, originalValue, cancellationToken);
 
     return command switch
     {
@@ -94,7 +94,7 @@ public sealed class RespExecutor(
 
     if (redisCommand != null)
     {
-      CommandExecutionContext context = new(clientId, port, cancellationToken, originalValue);
+      CommandExecutionContext context = new(clientId, port, originalValue, cancellationToken);
       return redisCommand.ExecuteAsync(originalValue.ArrayValue ?? [], context);
     }
 

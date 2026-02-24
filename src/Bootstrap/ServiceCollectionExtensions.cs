@@ -7,6 +7,7 @@ using codecrafters_redis.src.Commands.Replication;
 using codecrafters_redis.src.Commands.Streams;
 using codecrafters_redis.src.Commands.Strings;
 using codecrafters_redis.src.Hosting;
+using codecrafters_redis.src.Replication;
 using codecrafters_redis.src.Resp;
 using Microsoft.Extensions.DependencyInjection;
 

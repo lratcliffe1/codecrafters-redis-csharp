@@ -1,5 +1,5 @@
 using codecrafters_redis.src.Helpers;
-using codecrafters_redis.src.Hosting;
+using codecrafters_redis.src.Replication;
 using codecrafters_redis.src.Resp;
 
 namespace codecrafters_redis.src.Commands.Replication;
@@ -26,23 +26,27 @@ public sealed class WaitCommand(IReplicaConnectionRegistry replicaConnectionRegi
 
     if (timeout < 0)
     {
-      return CommandHelper.BuildError("timeout must be greater than 0 for 'wait' command");
+      return CommandHelper.BuildError("timeout must be greater or equal to 0 for 'wait' command");
     }
 
     if (replicas < 0)
     {
-      return CommandHelper.BuildError("replicas must be greater than 0 for 'wait' command");
+      return CommandHelper.BuildError("replicas must be greater or equal to 0 for 'wait' command");
     }
 
-    int replicaCount = replicaConnectionRegistry.GetReplicaCount();
+    long targetOffset = replicaConnectionRegistry.GetReplicationOffset();
 
-    if (replicaCount >= replicas)
+    if (replicaConnectionRegistry.TryMarkWaitOffset(targetOffset))
     {
-      return CommandHelper.FormatInteger(replicaCount);
+      await replicaConnectionRegistry.RequestAcknowledgementsAsync(context.CancellationToken);
     }
 
-    await Task.Delay(TimeSpan.FromMilliseconds(timeout), context.CancellationToken);
-    replicaCount = replicaConnectionRegistry.GetReplicaCount();
-    return CommandHelper.FormatInteger(replicaCount);
+    int acknowledgedReplicas = await replicaConnectionRegistry.WaitForReplicasAsync(
+      replicas,
+      targetOffset,
+      TimeSpan.FromMilliseconds(timeout),
+      context.CancellationToken);
+
+    return CommandHelper.FormatInteger(acknowledgedReplicas);
   }
 }
