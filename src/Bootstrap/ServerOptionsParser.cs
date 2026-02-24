@@ -11,66 +11,91 @@ public sealed class ServerOptionsParser : IServerOptionsParser
   {
     int port = 6379;
     int? replicaOfPort = null;
+    string? dataDirectory = null;
+    string? dbfilename = null;
 
-    for (int index = 0; index < args.Length; index++)
+    int index = 0;
+    while (index < args.Length)
     {
-      if (string.Equals(args[index], "--port", StringComparison.InvariantCultureIgnoreCase))
-      {
-        if (index + 1 < args.Length && int.TryParse(args[index + 1], out int parsedPort))
-        {
-          port = parsedPort;
-          index++;
-        }
+      int consumedArgs = 0;
+      string option = args[index].ToLowerInvariant();
 
-        continue;
+      switch (option)
+      {
+        case "--port":
+          port = TryParseInt(args, index, out consumedArgs) ?? 6379;
+          break;
+        case "--replicaof":
+          replicaOfPort = TryParseReplicaOfPort(args, index, out consumedArgs);
+          break;
+        case "--dir":
+          dataDirectory = TryParseString(args, index, out consumedArgs);
+          break;
+        case "--dbfilename":
+          dbfilename = TryParseString(args, index, out consumedArgs);
+          break;
+        default:
+          break;
       }
 
-      if (!string.Equals(args[index], "--replicaof", StringComparison.InvariantCultureIgnoreCase))
-      {
-        continue;
-      }
-
-      if (TryParseReplicaOfPort(args, index, out int parsedReplicaPort, out int consumedArgs))
-      {
-        replicaOfPort = parsedReplicaPort;
-        index += consumedArgs;
-      }
+      index += consumedArgs + 1;
     }
 
-    return new ServerOptions(port, replicaOfPort);
+    return new ServerOptions(port, replicaOfPort, dataDirectory, dbfilename);
   }
 
-  private static bool TryParseReplicaOfPort(string[] args, int replicaOfIndex, out int replicaPort, out int consumedArgs)
+  private static int? TryParseInt(string[] args, int index, out int consumedArgs)
   {
-    replicaPort = 0;
+    consumedArgs = 0;
+
+    if (index + 1 < args.Length && int.TryParse(args[index + 1], out int parsedInt))
+    {
+      consumedArgs = 1;
+      return parsedInt;
+    }
+    return null;
+  }
+
+  private static string? TryParseString(string[] args, int index, out int consumedArgs)
+  {
+    consumedArgs = 0;
+
+    if (index + 1 < args.Length && !string.IsNullOrWhiteSpace(args[index + 1]) && !args[index + 1].StartsWith("--", StringComparison.Ordinal))
+    {
+      consumedArgs = 1;
+      return args[index + 1];
+    }
+    return null;
+  }
+
+  private static int? TryParseReplicaOfPort(string[] args, int replicaOfIndex, out int consumedArgs)
+  {
     consumedArgs = 0;
 
     if (replicaOfIndex + 1 >= args.Length)
     {
-      return false;
+      return null;
     }
 
     if (replicaOfIndex + 2 < args.Length && int.TryParse(args[replicaOfIndex + 2], out int twoArgPort))
     {
-      replicaPort = twoArgPort;
       consumedArgs = 2;
-      return true;
+      return twoArgPort;
     }
 
     string[] parts = args[replicaOfIndex + 1].Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
     if (parts.Length == 0)
     {
-      return false;
+      return null;
     }
 
     if (!int.TryParse(parts[^1], out int singleArgPort))
     {
-      return false;
+      return null;
     }
 
-    replicaPort = singleArgPort;
     consumedArgs = 1;
-    return true;
+    return singleArgPort;
   }
 }

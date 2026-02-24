@@ -3,6 +3,7 @@ using codecrafters_redis.src.Commands;
 using codecrafters_redis.src.Commands.General;
 using codecrafters_redis.src.Commands.Lists;
 using codecrafters_redis.src.Commands.Multi;
+using codecrafters_redis.src.Commands.Persistance;
 using codecrafters_redis.src.Commands.Replication;
 using codecrafters_redis.src.Commands.Streams;
 using codecrafters_redis.src.Commands.Strings;
@@ -58,6 +59,8 @@ public static class ServiceCollectionExtensions
 
     services.AddKeyedSingleton<IRedisCommand, MultiCommand>("MULTI");
     services.AddKeyedSingleton<IRedisCommand, DiscardCommand>("DISCARD");
+
+    services.AddKeyedSingleton<IRedisCommand, ConfigCommand>("CONFIG");
 
     services.AddKeyedSingleton<IRedisCommand, InfoCommand>("INFO");
     services.AddKeyedSingleton<IRedisCommand, ReplconfCommand>("REPLCONF");
