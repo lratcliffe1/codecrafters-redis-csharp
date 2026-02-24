@@ -47,6 +47,7 @@ public static class ServiceCollectionExtensions
   private static void AddKeyedCommands(IServiceCollection services)
   {
     services.AddKeyedSingleton<IRedisCommand, EchoCommand>("ECHO");
+    services.AddKeyedSingleton<IRedisCommand, KeysCommand>("KEYS");
     services.AddKeyedSingleton<IRedisCommand, PingCommand>("PING");
     services.AddKeyedSingleton<IRedisCommand, TypeCommand>("TYPE");
 
@@ -86,5 +87,6 @@ public static class ServiceCollectionExtensions
     services.AddSingleton<IRespParser, RespParser>();
     services.AddSingleton<ICommandEventLoop, CommandEventLoop>();
     services.AddSingleton<IRespExecutor, RespExecutor>();
+    services.AddSingleton<IRDBFileReader, RDBFileReader>();
   }
 }

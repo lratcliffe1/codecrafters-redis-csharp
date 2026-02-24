@@ -17,6 +17,7 @@ public interface ICacheStore
   List<string>? LPop(string key, int popCount);
   Task<bool> WaitForListEntriesAsync(string key, double expirationSeconds, CancellationToken cancellationToken = default);
   Task<bool> WaitForStreamEntriesAsync(IReadOnlyList<(string key, string id)> streams, double expirationMilliseconds, CancellationToken cancellationToken = default);
+  List<string> GetKeys(string pattern);
 }
 
 public sealed class Cache : ICacheStore
@@ -348,5 +349,14 @@ public sealed class Cache : ICacheStore
     {
       throw new InvalidOperationException("Cache access must execute on the command event-loop owner lane.");
     }
+  }
+
+  public List<string> GetKeys(string pattern)
+  {
+    EnsureLoopOwner();
+    return _memoryCache.Keys
+      .Where(key => key is string)
+      .Where(key => key.ToString()!.StartsWith(pattern))
+      .Select(key => key.ToString()!).ToList();
   }
 }

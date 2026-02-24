@@ -1,6 +1,7 @@
 using System.Net;
 using System.Net.Sockets;
 using codecrafters_redis.src.Bootstrap;
+using codecrafters_redis.src.Cache;
 using codecrafters_redis.src.Resp;
 
 namespace codecrafters_redis.src.Hosting;
@@ -15,23 +16,21 @@ public sealed class RedisServerHost(
   ICommandEventLoop commandEventLoop,
   IClientIdAllocator clientIdAllocator,
   IHandshakeCoordinator handshakeCoordinator,
-  IClientHandler clientHandler) : IRedisServerHost
+  IClientHandler clientHandler,
+  IRDBFileReader rdbFileReader) : IRedisServerHost
 {
-  private readonly IServerOptions _serverOptions = serverOptions;
-  private readonly ICommandEventLoop _commandEventLoop = commandEventLoop;
-  private readonly IClientIdAllocator _clientIdAllocator = clientIdAllocator;
-  private readonly IHandshakeCoordinator _handshakeCoordinator = handshakeCoordinator;
-  private readonly IClientHandler _clientHandler = clientHandler;
 
   public async Task RunAsync(CancellationToken cancellationToken = default)
   {
+    await rdbFileReader.ReadAsync(cancellationToken);
+
     using CancellationTokenSource shutdownTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
     Console.CancelKeyPress += OnCancelKeyPress;
 
     TcpListener? server = null;
     try
     {
-      server = new TcpListener(IPAddress.Any, _serverOptions.Port);
+      server = new TcpListener(IPAddress.Any, serverOptions.Port);
       server.Start();
 
       await SendHandshakeAsync(shutdownTokenSource.Token);
@@ -39,7 +38,7 @@ public sealed class RedisServerHost(
       while (!shutdownTokenSource.Token.IsCancellationRequested)
       {
         TcpClient client = await server.AcceptTcpClientAsync(shutdownTokenSource.Token);
-        _ = _clientHandler.HandleClientAsync(client, _clientIdAllocator.Next(), shutdownTokenSource.Token);
+        _ = clientHandler.HandleClientAsync(client, clientIdAllocator.Next(), shutdownTokenSource.Token);
       }
     }
     catch (OperationCanceledException)
@@ -55,7 +54,7 @@ public sealed class RedisServerHost(
       server?.Stop();
       Console.CancelKeyPress -= OnCancelKeyPress;
 
-      await _commandEventLoop.DisposeAsync().ConfigureAwait(false);
+      await commandEventLoop.DisposeAsync().ConfigureAwait(false);
     }
 
     return;
@@ -69,9 +68,9 @@ public sealed class RedisServerHost(
 
   private async Task SendHandshakeAsync(CancellationToken cancellationToken)
   {
-    if (_serverOptions.IsReplica)
+    if (serverOptions.IsReplica)
     {
-      await _handshakeCoordinator.SendHandshakeToMasterAsync(_serverOptions.ReplicaOfPort!.Value, cancellationToken);
+      await handshakeCoordinator.SendHandshakeToMasterAsync(serverOptions.ReplicaOfPort!.Value, cancellationToken);
     }
   }
 }
