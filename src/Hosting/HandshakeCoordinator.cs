@@ -10,9 +10,9 @@ public interface IHandshakeCoordinator
   Task SendHandshakeToMasterAsync(int replicaOfPort, CancellationToken cancellationToken);
 }
 
-public sealed class HandshakeCoordinator(ServerOptions serverOptions, IClientHandler clientHandler, IClientIdAllocator clientIdAllocator) : IHandshakeCoordinator
+public sealed class HandshakeCoordinator(IServerOptions serverOptions, IClientHandler clientHandler, IClientIdAllocator clientIdAllocator) : IHandshakeCoordinator
 {
-  private readonly ServerOptions _serverOptions = serverOptions;
+  private readonly IServerOptions _serverOptions = serverOptions;
   private readonly IClientHandler _clientHandler = clientHandler;
   private readonly IClientIdAllocator _clientIdAllocator = clientIdAllocator;
 
@@ -42,6 +42,7 @@ public sealed class HandshakeCoordinator(ServerOptions serverOptions, IClientHan
     _ = await ReadExactlyAsync(stream, rdbLength, cancellationToken);
 
     // 6. Continue reading commands from the same replication connection.
+    _serverOptions.ResetAckBytes();
     _ = _clientHandler.HandleClientAsync(master, _clientIdAllocator.Next(), cancellationToken, suppressResponse: true);
   }
 

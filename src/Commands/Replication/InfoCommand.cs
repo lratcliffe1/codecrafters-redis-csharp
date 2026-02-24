@@ -4,7 +4,7 @@ using codecrafters_redis.src.Resp;
 
 namespace codecrafters_redis.src.Commands.Replication;
 
-public sealed class InfoCommand(ServerOptions serverOptions) : IRedisCommand
+public sealed class InfoCommand(IServerOptions serverOptions) : IRedisCommand
 {
   public string Name => "INFO";
   public Task<string> ExecuteAsync(List<RespValue> args, CommandExecutionContext context)

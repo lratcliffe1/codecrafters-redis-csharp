@@ -14,12 +14,12 @@ public interface IClientHandler
 public sealed class ClientHandler(
   ICommandEventLoop commandEventLoop,
   IRespParser respParser,
-  ServerOptions serverOptions,
+  IServerOptions serverOptions,
   IReplicaConnectionRegistry replicaConnectionRegistry) : IClientHandler
 {
   private readonly ICommandEventLoop _commandEventLoop = commandEventLoop;
   private readonly IRespParser _respParser = respParser;
-  private readonly ServerOptions _serverOptions = serverOptions;
+  private readonly IServerOptions _serverOptions = serverOptions;
   private readonly IReplicaConnectionRegistry _replicaConnectionRegistry = replicaConnectionRegistry;
 
   private static readonly HashSet<string> WriteCommands = new(StringComparer.Ordinal)
@@ -56,7 +56,7 @@ public sealed class ClientHandler(
 
         incomingBuffer.Append(Encoding.ASCII.GetString(bytes, 0, bytesRead));
 
-        while (TryReadNextCommand(incomingBuffer, out RespValue? value))
+        while (TryReadNextCommand(incomingBuffer, out RespValue? value, out int consumedLength))
         {
           if (value == null)
           {
@@ -65,6 +65,11 @@ public sealed class ClientHandler(
 
           TryReadCommandName(value, out string command);
           string response = await _commandEventLoop.ExecuteAsync(value, clientId, _serverOptions.Port, cancellationToken);
+
+          if (suppressResponse)
+          {
+            _serverOptions.AddAckBytes(consumedLength);
+          }
 
           if (ShouldSendResponse(suppressResponse, command, value))
           {
@@ -114,10 +119,10 @@ public sealed class ClientHandler(
     }
   }
 
-  private bool TryReadNextCommand(StringBuilder buffer, out RespValue? value)
+  private bool TryReadNextCommand(StringBuilder buffer, out RespValue? value, out int consumedLength)
   {
     string data = buffer.ToString();
-    if (!_respParser.TryParse(data, out RespValue parsedValue, out int consumedLength))
+    if (!_respParser.TryParse(data, out RespValue parsedValue, out consumedLength))
     {
       value = null;
       return false;

@@ -29,10 +29,10 @@ public static class ServiceCollectionExtensions
 
   private static void ParseAndAddServerOptions(IServiceCollection services, string[] args)
   {
-    ServerOptionsParser serverOptionsParser = new();
+    IServerOptionsParser serverOptionsParser = new ServerOptionsParser();
     ServerOptions options = serverOptionsParser.Parse(args);
 
-    services.AddSingleton(options);
+    services.AddSingleton<IServerOptions>(options);
     services.AddSingleton(serverOptionsParser);
   }
 

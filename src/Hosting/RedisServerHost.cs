@@ -11,13 +11,13 @@ public interface IRedisServerHost
 }
 
 public sealed class RedisServerHost(
-  ServerOptions serverOptions,
+  IServerOptions serverOptions,
   ICommandEventLoop commandEventLoop,
   IClientIdAllocator clientIdAllocator,
   IHandshakeCoordinator handshakeCoordinator,
   IClientHandler clientHandler) : IRedisServerHost
 {
-  private readonly ServerOptions _serverOptions = serverOptions;
+  private readonly IServerOptions _serverOptions = serverOptions;
   private readonly ICommandEventLoop _commandEventLoop = commandEventLoop;
   private readonly IClientIdAllocator _clientIdAllocator = clientIdAllocator;
   private readonly IHandshakeCoordinator _handshakeCoordinator = handshakeCoordinator;

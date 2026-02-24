@@ -57,8 +57,8 @@ public sealed class ServerOptionsParser : IServerOptionsParser
       return true;
     }
 
-    string[] parts = args[replicaOfIndex + 1]
-      .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+    string[] parts = args[replicaOfIndex + 1].Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
     if (parts.Length == 0)
     {
       return false;
