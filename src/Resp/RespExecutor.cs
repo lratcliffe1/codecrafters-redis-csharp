@@ -89,8 +89,7 @@ public sealed class RespExecutor(
     {
       return command switch
       {
-        "SUBSCRIBE" => redisCommand.ExecuteAsync(originalValue.ArrayValue ?? [], context),
-        "PING" => redisCommand.ExecuteAsync(originalValue.ArrayValue ?? [], context),
+        "SUBSCRIBE" or "PUBLISH" or "PING" => redisCommand.ExecuteAsync(originalValue.ArrayValue ?? [], context),
         _ => CommandHelper.BuildErrorAsync($"Can't execute '{command}': only (P|S)SUBSCRIBE / (P|S)UNSUBSCRIBE / PING / QUIT / RESET are allowed in this context"),
       };
     }
