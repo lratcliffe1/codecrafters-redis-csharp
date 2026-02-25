@@ -7,6 +7,7 @@ public interface IPubSubStore
 {
   bool ContainsKey(long clientId);
   int Subscribe(long clientId, string channel);
+  int Unsubscribe(long clientId, string channel);
   Task<int> PublishAsync(string channel, string message, CancellationToken cancellationToken);
   void Remove(long clientId);
 }
@@ -38,6 +39,26 @@ public sealed class PubSubStore(IClientConnectionRegistry clientConnectionRegist
       }
 
       clients.Add(clientId);
+    }
+
+    return channels.Count;
+  }
+
+  public int Unsubscribe(long clientId, string channel)
+  {
+    if (!_subscriptions.TryGetValue(clientId, out HashSet<string>? channels))
+    {
+      return 0;
+    }
+
+    if (channels.Remove(channel))
+    {
+      if (!_channels.TryGetValue(channel, out HashSet<long>? clients))
+      {
+        return 0;
+      }
+      
+      clients.Remove(clientId);
     }
 
     return channels.Count;

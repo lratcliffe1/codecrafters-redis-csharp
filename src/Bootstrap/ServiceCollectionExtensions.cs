@@ -67,6 +67,7 @@ public static class ServiceCollectionExtensions
 
     services.AddKeyedSingleton<IRedisCommand, SubscribeCommand>("SUBSCRIBE");
     services.AddKeyedSingleton<IRedisCommand, PublishCommand>("PUBLISH");
+    services.AddKeyedSingleton<IRedisCommand, UnsubscribeCommand>("UNSUBSCRIBE");
 
     services.AddKeyedSingleton<IRedisCommand, InfoCommand>("INFO");
     services.AddKeyedSingleton<IRedisCommand, ReplconfCommand>("REPLCONF");
