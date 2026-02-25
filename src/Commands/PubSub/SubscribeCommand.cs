@@ -16,7 +16,7 @@ public class SubscribeCommand(IPubSubStore pubSubStore) : IRedisCommand
 
     string channel = args[1].ToString();
 
-    var count = pubSubStore.Subscribe(channel);
+    var count = pubSubStore.Subscribe(context.ClientId, channel);
 
     return CommandHelper.FormatArrayAsync(["subscribe", channel, count]);
   }

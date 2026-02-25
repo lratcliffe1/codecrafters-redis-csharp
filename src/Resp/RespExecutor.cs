@@ -83,7 +83,18 @@ public sealed class RespExecutor(
   {
     CommandExecutionContext context = new(clientId, port, originalValue, cancellationToken);
 
-    return Task.FromResult("1");
+    var redisCommand = serviceProvider.GetKeyedService<IRedisCommand>(command.ToUpper());
+
+    if (redisCommand != null)
+    {
+      return command switch
+      {
+        "SUBSCRIBE" => redisCommand.ExecuteAsync(originalValue.ArrayValue ?? [], context),
+        _ => CommandHelper.BuildErrorAsync($"Can't execute '{command}': only (P|S)SUBSCRIBE / (P|S)UNSUBSCRIBE / PING / QUIT / RESET are allowed in this context"),
+      };
+    }
+
+    return CommandHelper.BuildErrorAsync($"unknown command: {command}");
   }
 
   private Task<string> ExecuteCommandAsync(
