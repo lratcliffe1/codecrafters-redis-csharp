@@ -77,6 +77,7 @@ public static class ServiceCollectionExtensions
 
     services.AddKeyedSingleton<IRedisCommand, ZAddCommand>("ZADD");
     services.AddKeyedSingleton<IRedisCommand, ZRankCommand>("ZRANK");
+    services.AddKeyedSingleton<IRedisCommand, ZRangeCommand>("ZRANGE");
 
     services.AddKeyedSingleton<IRedisCommand, XAddCommand>("XADD");
     services.AddKeyedSingleton<IRedisCommand, XRangeCommand>("XRANGE");
