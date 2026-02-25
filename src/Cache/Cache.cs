@@ -19,6 +19,7 @@ public interface ICacheStore
   Task<bool> WaitForStreamEntriesAsync(IReadOnlyList<(string key, string id)> streams, double expirationMilliseconds, CancellationToken cancellationToken = default);
   List<string> GetKeys(string pattern);
   int ZAdd(string key, double score, string member);
+  int ZRank(string key, string member);
 }
 
 public sealed class Cache : ICacheStore
@@ -376,10 +377,22 @@ public sealed class Cache : ICacheStore
 
     InsertZSetEntry(existingValues, score, member);
     _memoryCache.Set(key, CacheValue.ZSet(existingValues));
-    
+
     return 1;
   }
 
+  public int ZRank(string key, string member)
+  {
+    EnsureLoopOwner();
+    if (!TryGetValue(key, out CacheValue? cachedValue) || cachedValue == null || !cachedValue.TryGetZSet(out List<ZSetEntry> existingValues))
+    {
+      return -1;
+    }
+
+    int index = existingValues.FindIndex(entry => entry.Member == member);
+    return index;
+  }
+  
   private static bool ZSetContainsMember(List<ZSetEntry> existingValues, string member)
   {
     return existingValues.Any(entry => entry.Member == member);
@@ -395,7 +408,7 @@ public sealed class Cache : ICacheStore
     existingValues.Insert(index, new ZSetEntry(member, score));
   }
 
-  private class ZSetEntryComparer : IComparer<ZSetEntry>  
+  private class ZSetEntryComparer : IComparer<ZSetEntry>
   {
     public int Compare(ZSetEntry? x, ZSetEntry? y)
     {
@@ -404,7 +417,8 @@ public sealed class Cache : ICacheStore
         return 0;
       }
       int scoreComparison = x.Score.CompareTo(y.Score);
-      return scoreComparison != 0 ? scoreComparison : x.Member.CompareTo(y.Member);
+      int nameComparison = x.Member.CompareTo(y.Member);
+      return scoreComparison != 0 ? scoreComparison : nameComparison;
     }
   }
 }
