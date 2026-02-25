@@ -402,8 +402,26 @@ public sealed class Cache : ICacheStore
       return [];
     }
 
-    var outputs = existingValues.Skip(start).Take(stop - start + 1).ToList();
-    return outputs;
+    int count = existingValues.Count;
+    if (count == 0)
+      return [];
+
+    int startIndex = start < 0 ? count + start : start;
+    int stopIndex = stop < 0 ? count + stop + 1 : stop + 1;
+
+    if (startIndex > stopIndex)
+      return [];
+
+    if (startIndex > count)
+      return [];
+
+    if (startIndex < 0)
+      startIndex = 0;
+
+    if (stopIndex > count)
+      stopIndex = count;
+
+    return existingValues[startIndex..stopIndex];
   }
   
   private static bool ZSetContainsMember(List<ZSetEntry> existingValues, string member)
