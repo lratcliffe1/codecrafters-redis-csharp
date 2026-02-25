@@ -18,7 +18,7 @@ public interface ICacheStore
   Task<bool> WaitForListEntriesAsync(string key, double expirationSeconds, CancellationToken cancellationToken = default);
   Task<bool> WaitForStreamEntriesAsync(IReadOnlyList<(string key, string id)> streams, double expirationMilliseconds, CancellationToken cancellationToken = default);
   List<string> GetKeys(string pattern);
-  void ZAdd(string key, double score, string member);
+  int ZAdd(string key, double score, string member);
 }
 
 public sealed class Cache : ICacheStore
@@ -361,7 +361,7 @@ public sealed class Cache : ICacheStore
       .Select(key => key.ToString()!).ToList();
   }
 
-  public void ZAdd(string key, double score, string member)
+  public int ZAdd(string key, double score, string member)
   {
     EnsureLoopOwner();
     if (!TryGetValue(key, out CacheValue? cachedValue) || cachedValue == null || !cachedValue.TryGetZSet(out List<ZSetEntry> existingValues))
@@ -369,7 +369,42 @@ public sealed class Cache : ICacheStore
       existingValues = [];
     }
 
-    existingValues.Add(new ZSetEntry(member, score));
-    _memoryCache.Set(key, existingValues);
+    if (ZSetContainsMember(existingValues, member))
+    {
+      return 0;
+    }
+
+    InsertZSetEntry(existingValues, score, member);
+    _memoryCache.Set(key, CacheValue.ZSet(existingValues));
+    
+    return 1;
+  }
+
+  private static bool ZSetContainsMember(List<ZSetEntry> existingValues, string member)
+  {
+    return existingValues.Any(entry => entry.Member == member);
+  }
+
+  private static void InsertZSetEntry(List<ZSetEntry> existingValues, double score, string member)
+  {
+    int index = existingValues.BinarySearch(new ZSetEntry(member, score), new ZSetEntryComparer());
+    if (index < 0)
+    {
+      index = ~index;
+    }
+    existingValues.Insert(index, new ZSetEntry(member, score));
+  }
+
+  private class ZSetEntryComparer : IComparer<ZSetEntry>  
+  {
+    public int Compare(ZSetEntry? x, ZSetEntry? y)
+    {
+      if (x == null || y == null)
+      {
+        return 0;
+      }
+      int scoreComparison = x.Score.CompareTo(y.Score);
+      return scoreComparison != 0 ? scoreComparison : x.Member.CompareTo(y.Member);
+    }
   }
 }

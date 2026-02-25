@@ -24,8 +24,8 @@ public class ZAddCommand(ICacheStore cacheStore) : IRedisCommand
       return CommandHelper.BuildErrorAsync("invalid score for 'zadd'");
     }
 
-    cacheStore.ZAdd(key, scoreValue, member);
+    int added = cacheStore.ZAdd(key, scoreValue, member);
 
-    return CommandHelper.FormatIntegerAsync(1);
+    return CommandHelper.FormatIntegerAsync(added);
   }
 }
