@@ -22,6 +22,7 @@ public interface ICacheStore
   int ZRank(string key, string member);
   List<ZSetEntry> ZRange(string key, int start, int stop);
   int ZCard(string key);
+  double? ZScore(string key, string member);
 }
 
 public sealed class Cache : ICacheStore
@@ -374,6 +375,9 @@ public sealed class Cache : ICacheStore
 
     if (ZSetContainsMember(existingValues, member))
     {
+      existingValues = existingValues.Select(entry => entry.Member == member ? new ZSetEntry(entry.Member, score) : entry).ToList();
+      _memoryCache.Set(key, CacheValue.ZSet(existingValues));
+      
       return 0;
     }
 
@@ -435,6 +439,21 @@ public sealed class Cache : ICacheStore
     return existingValues.Count;
   }
   
+  public double? ZScore(string key, string member)
+  {
+    EnsureLoopOwner();
+    if (!TryGetValue(key, out CacheValue? cachedValue) || cachedValue == null || !cachedValue.TryGetZSet(out List<ZSetEntry> existingValues))
+    {
+      return null;
+    }
+    int index = existingValues.FindIndex(entry => entry.Member == member);
+    if (index == -1)
+    {
+      return null;
+    }
+    return existingValues[index].Score;
+  }
+
   private static bool ZSetContainsMember(List<ZSetEntry> existingValues, string member)
   {
     return existingValues.Any(entry => entry.Member == member);
