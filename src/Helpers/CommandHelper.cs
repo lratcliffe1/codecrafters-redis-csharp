@@ -47,11 +47,11 @@ public static class CommandHelper
     };
   }
 
-  public static Task<string> FormatArrayAsync(IReadOnlyList<string> values) => Task.FromResult(FormatArray(values));
+  public static Task<string> FormatArrayAsync(IReadOnlyList<object> values) => Task.FromResult(FormatArray(values));
 
-  public static string FormatArray(IReadOnlyList<string> values)
+  public static string FormatArray(IReadOnlyList<object> values)
   {
-    List<string> encoded = values.Select(FormatBulk).ToList();
+    List<string> encoded = values.Select(FormatArrayValue).ToList();
     return FormatArrayOfResp(encoded);
   }
 
@@ -114,6 +114,23 @@ public static class CommandHelper
   }
 
   public static Task<string> FormatValueAsync(CacheValue value) => Task.FromResult(FormatValue(value));
+
+  private static string FormatArrayValue(object value)
+  {
+    return value switch
+    {
+      string stringValue => FormatBulk(stringValue),
+      int integerValue => FormatInteger(integerValue),
+      long integerValue => FormatInteger(integerValue),
+      short integerValue => FormatInteger(integerValue),
+      sbyte integerValue => FormatInteger(integerValue),
+      byte integerValue => FormatInteger(integerValue),
+      ushort integerValue => FormatInteger(integerValue),
+      uint integerValue => FormatInteger(integerValue),
+      ulong integerValue when integerValue <= long.MaxValue => FormatInteger((long)integerValue),
+      _ => throw new ArgumentException($"Unsupported array value type: {value.GetType().Name}", nameof(value)),
+    };
+  }
 
   private static string FormatSetValue(HashSet<string> values)
   {

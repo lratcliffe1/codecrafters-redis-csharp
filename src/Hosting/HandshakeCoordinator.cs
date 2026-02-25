@@ -12,10 +12,6 @@ public interface IHandshakeCoordinator
 
 public sealed class HandshakeCoordinator(IServerOptions serverOptions, IClientHandler clientHandler, IClientIdAllocator clientIdAllocator) : IHandshakeCoordinator
 {
-  private readonly IServerOptions _serverOptions = serverOptions;
-  private readonly IClientHandler _clientHandler = clientHandler;
-  private readonly IClientIdAllocator _clientIdAllocator = clientIdAllocator;
-
   public async Task SendHandshakeToMasterAsync(int replicaOfPort, CancellationToken cancellationToken)
   {
     TcpClient master = new("localhost", replicaOfPort);
@@ -26,7 +22,7 @@ public sealed class HandshakeCoordinator(IServerOptions serverOptions, IClientHa
     _ = await ReadLineAsync(stream, cancellationToken);
 
     // 2. Send REPLCONF listening-port and WAIT for "+OK"
-    await SendCommandAsync(stream, ["REPLCONF", "listening-port", _serverOptions.Port.ToString()], cancellationToken);
+    await SendCommandAsync(stream, ["REPLCONF", "listening-port", serverOptions.Port.ToString()], cancellationToken);
     _ = await ReadLineAsync(stream, cancellationToken);
 
     // 3. Send REPLCONF capa and WAIT for "+OK"
@@ -42,8 +38,8 @@ public sealed class HandshakeCoordinator(IServerOptions serverOptions, IClientHa
     _ = await ReadExactlyAsync(stream, rdbLength, cancellationToken);
 
     // 6. Continue reading commands from the same replication connection.
-    _serverOptions.ResetAckBytes();
-    _ = _clientHandler.HandleClientAsync(master, _clientIdAllocator.Next(), cancellationToken, suppressResponse: true);
+    serverOptions.ResetAckBytes();
+    _ = clientHandler.HandleClientAsync(master, clientIdAllocator.Next(), cancellationToken, suppressResponse: true);
   }
 
   private static async Task SendCommandAsync(NetworkStream stream, string[] command, CancellationToken ct)

@@ -13,15 +13,11 @@ public interface IRespExecutor
 
 public sealed class RespExecutor(
   IClientMultiStore clientMultiStore,
+  IPubSubStore pubSubStore,
   IServiceProvider serviceProvider,
   [FromKeyedServices("DISCARD")] IRedisCommand discardCommand,
   [FromKeyedServices("MULTI")] IRedisCommand multiCommand) : IRespExecutor
 {
-  private readonly IClientMultiStore _clientMultiStore = clientMultiStore;
-  private readonly IServiceProvider _serviceProvider = serviceProvider;
-  private readonly IRedisCommand _discardCommand = discardCommand;
-  private readonly IRedisCommand _multiCommand = multiCommand;
-
   public Task<string> ExecuteAsync(RespValue value, long clientId, int port, CancellationToken cancellationToken = default)
   {
     if (!TryReadCommand(value, out string command))
@@ -29,9 +25,14 @@ public sealed class RespExecutor(
       return CommandHelper.BuildErrorAsync("expected array command");
     }
 
-    if (_clientMultiStore.ContainsKey(clientId))
+    if (clientMultiStore.ContainsKey(clientId))
     {
       return ExecuteInMultiAsync(value, command, clientId, port, cancellationToken);
+    }
+
+    if (pubSubStore.ContainsKey(clientId))
+    {
+      return ExecuteInPubSubAsync(value, command, clientId, port, cancellationToken);
     }
 
     return ExecuteCommandAsync(value, command, clientId, port, cancellationToken);
@@ -39,7 +40,7 @@ public sealed class RespExecutor(
 
   public void OnClientDisconnected(long clientId)
   {
-    _clientMultiStore.Remove(clientId);
+    clientMultiStore.Remove(clientId);
   }
 
   private static bool TryReadCommand(RespValue value, out string command)
@@ -68,9 +69,21 @@ public sealed class RespExecutor(
     {
       "EXEC" => ExecCommandAsync(clientId, port, cancellationToken),
       "MULTI" => CommandHelper.BuildErrorAsync("MULTI calls can not be nested"),
-      "DISCARD" => _discardCommand.ExecuteAsync(originalValue.ArrayValue ?? [], context),
-      _ => _multiCommand.ExecuteAsync(originalValue.ArrayValue ?? [], context),
+      "DISCARD" => discardCommand.ExecuteAsync(originalValue.ArrayValue ?? [], context),
+      _ => multiCommand.ExecuteAsync(originalValue.ArrayValue ?? [], context),
     };
+  }
+
+  private Task<string> ExecuteInPubSubAsync(
+    RespValue originalValue,
+    string command,
+    long clientId,
+    int port,
+    CancellationToken cancellationToken)
+  {
+    CommandExecutionContext context = new(clientId, port, originalValue, cancellationToken);
+
+    return Task.FromResult("1");
   }
 
   private Task<string> ExecuteCommandAsync(
@@ -90,7 +103,7 @@ public sealed class RespExecutor(
       return CommandHelper.BuildErrorAsync("DISCARD without MULTI");
     }
 
-    var redisCommand = _serviceProvider.GetKeyedService<IRedisCommand>(command.ToUpper());
+    var redisCommand = serviceProvider.GetKeyedService<IRedisCommand>(command.ToUpper());
 
     if (redisCommand != null)
     {
@@ -103,12 +116,12 @@ public sealed class RespExecutor(
 
   private async Task<string> ExecCommandAsync(long clientId, int port, CancellationToken cancellationToken)
   {
-    if (!_clientMultiStore.TryGetValue(clientId, out var commands) || commands == null)
+    if (!clientMultiStore.TryGetValue(clientId, out var commands) || commands == null)
     {
       return CommandHelper.BuildError("EXEC without MULTI");
     }
 
-    _clientMultiStore.Remove(clientId);
+    clientMultiStore.Remove(clientId);
 
     List<string> results = [];
     foreach (RespValue command in commands)

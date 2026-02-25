@@ -4,6 +4,7 @@ using codecrafters_redis.src.Commands.General;
 using codecrafters_redis.src.Commands.Lists;
 using codecrafters_redis.src.Commands.Multi;
 using codecrafters_redis.src.Commands.Persistance;
+using codecrafters_redis.src.Commands.PubSub;
 using codecrafters_redis.src.Commands.Replication;
 using codecrafters_redis.src.Commands.Streams;
 using codecrafters_redis.src.Commands.Strings;
@@ -42,6 +43,7 @@ public static class ServiceCollectionExtensions
   {
     services.AddSingleton<ICacheStore, Cache.Cache>();
     services.AddSingleton<IClientMultiStore, ClientMultiStore>();
+    services.AddSingleton<IPubSubStore, PubSubStore>();
   }
 
   private static void AddKeyedCommands(IServiceCollection services)
@@ -62,6 +64,8 @@ public static class ServiceCollectionExtensions
     services.AddKeyedSingleton<IRedisCommand, DiscardCommand>("DISCARD");
 
     services.AddKeyedSingleton<IRedisCommand, ConfigCommand>("CONFIG");
+
+    services.AddKeyedSingleton<IRedisCommand, SubscribeCommand>("SUBSCRIBE");
 
     services.AddKeyedSingleton<IRedisCommand, InfoCommand>("INFO");
     services.AddKeyedSingleton<IRedisCommand, ReplconfCommand>("REPLCONF");

@@ -18,11 +18,6 @@ public sealed class ClientHandler(
   IServerOptions serverOptions,
   IReplicaConnectionRegistry replicaConnectionRegistry) : IClientHandler
 {
-  private readonly ICommandEventLoop _commandEventLoop = commandEventLoop;
-  private readonly IRespParser _respParser = respParser;
-  private readonly IServerOptions _serverOptions = serverOptions;
-  private readonly IReplicaConnectionRegistry _replicaConnectionRegistry = replicaConnectionRegistry;
-
   private static readonly HashSet<string> WriteCommands = new(StringComparer.Ordinal)
   {
     "SET",
@@ -65,11 +60,11 @@ public sealed class ClientHandler(
           }
 
           TryReadCommandName(value, out string command);
-          string response = await _commandEventLoop.ExecuteAsync(value, clientId, _serverOptions.Port, cancellationToken);
+          string response = await commandEventLoop.ExecuteAsync(value, clientId, serverOptions.Port, cancellationToken);
 
           if (suppressResponse)
           {
-            _serverOptions.AddAckBytes(consumedLength);
+            serverOptions.AddAckBytes(consumedLength);
           }
 
           if (ShouldSendResponse(suppressResponse, command, value))
@@ -82,7 +77,7 @@ public sealed class ClientHandler(
           if (IsFullResyncResponse(response))
           {
             await SendRDBFileAsync(stream, cancellationToken);
-            _replicaConnectionRegistry.RegisterReplica(clientId, stream);
+            replicaConnectionRegistry.RegisterReplica(clientId, stream);
             continue;
           }
 
@@ -94,7 +89,7 @@ public sealed class ClientHandler(
           if (IsWriteCommand(command))
           {
             string encodedCommand = RespEncoder.Encode(value);
-            await _replicaConnectionRegistry.PropagateAsync(encodedCommand, cancellationToken);
+            await replicaConnectionRegistry.PropagateAsync(encodedCommand, cancellationToken);
           }
         }
       }
@@ -115,15 +110,15 @@ public sealed class ClientHandler(
     }
     finally
     {
-      _replicaConnectionRegistry.UnregisterReplica(clientId);
-      await _commandEventLoop.NotifyClientDisconnectedAsync(clientId, _serverOptions.Port);
+      replicaConnectionRegistry.UnregisterReplica(clientId);
+      await commandEventLoop.NotifyClientDisconnectedAsync(clientId, serverOptions.Port);
     }
   }
 
   private bool TryReadNextCommand(StringBuilder buffer, out RespValue? value, out int consumedLength)
   {
     string data = buffer.ToString();
-    if (!_respParser.TryParse(data, out RespValue parsedValue, out consumedLength))
+    if (!respParser.TryParse(data, out RespValue parsedValue, out consumedLength))
     {
       value = null;
       return false;
