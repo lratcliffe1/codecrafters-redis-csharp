@@ -63,7 +63,7 @@ public sealed class RespExecutor(
     int port,
     CancellationToken cancellationToken)
   {
-    CommandExecutionContext context = new(clientId, port, originalValue, cancellationToken);
+    CommandExecutionContext context = new(clientId, port, originalValue, CommandMode.Multi, cancellationToken);
 
     return command switch
     {
@@ -81,7 +81,7 @@ public sealed class RespExecutor(
     int port,
     CancellationToken cancellationToken)
   {
-    CommandExecutionContext context = new(clientId, port, originalValue, cancellationToken);
+    CommandExecutionContext context = new(clientId, port, originalValue, CommandMode.PubSub, cancellationToken);
 
     var redisCommand = serviceProvider.GetKeyedService<IRedisCommand>(command.ToUpper());
 
@@ -90,6 +90,7 @@ public sealed class RespExecutor(
       return command switch
       {
         "SUBSCRIBE" => redisCommand.ExecuteAsync(originalValue.ArrayValue ?? [], context),
+        "PING" => redisCommand.ExecuteAsync(originalValue.ArrayValue ?? [], context),
         _ => CommandHelper.BuildErrorAsync($"Can't execute '{command}': only (P|S)SUBSCRIBE / (P|S)UNSUBSCRIBE / PING / QUIT / RESET are allowed in this context"),
       };
     }
@@ -118,7 +119,7 @@ public sealed class RespExecutor(
 
     if (redisCommand != null)
     {
-      CommandExecutionContext context = new(clientId, port, originalValue, cancellationToken);
+      CommandExecutionContext context = new(clientId, port, originalValue, CommandMode.Command, cancellationToken);
       return redisCommand.ExecuteAsync(originalValue.ArrayValue ?? [], context);
     }
 

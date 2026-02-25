@@ -10,7 +10,14 @@ public class PingCommand : IRedisCommand
   {
     if (args.Count == 1)
     {
-      return CommandHelper.FormatSimpleAsync("PONG");
+      if (context.Mode == CommandMode.PubSub)
+      {
+        return CommandHelper.FormatArrayAsync(["pong", ""]);
+      }
+      else
+      {
+        return CommandHelper.FormatSimpleAsync("PONG");
+      }
     }
 
     if (args.Count == 2)
