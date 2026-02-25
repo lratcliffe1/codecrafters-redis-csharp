@@ -16,7 +16,8 @@ public sealed class ClientHandler(
   ICommandEventLoop commandEventLoop,
   IRespParser respParser,
   IServerOptions serverOptions,
-  IReplicaConnectionRegistry replicaConnectionRegistry) : IClientHandler
+  IReplicaConnectionRegistry replicaConnectionRegistry,
+  IClientConnectionRegistry clientConnectionRegistry) : IClientHandler
 {
   private static readonly HashSet<string> WriteCommands = new(StringComparer.Ordinal)
   {
@@ -32,17 +33,19 @@ public sealed class ClientHandler(
 
   public async Task HandleClientAsync(TcpClient client, long clientId, CancellationToken serverCancellationToken, bool suppressResponse = false)
   {
-    using TcpClient _ = client;
+    using TcpClient ownedClient = client;
     using CancellationTokenSource connectionCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(serverCancellationToken);
     CancellationToken cancellationToken = connectionCancellationTokenSource.Token;
 
     byte[] bytes = new byte[4096];
     StringBuilder incomingBuffer = new();
     NetworkStream stream = client.GetStream();
+    clientConnectionRegistry.Register(clientId, stream);
+    bool shouldTerminateConnection = false;
 
     try
     {
-      while (true)
+      while (!shouldTerminateConnection)
       {
         int bytesRead = await stream.ReadAsync(bytes, cancellationToken);
         if (bytesRead == 0)
@@ -69,9 +72,11 @@ public sealed class ClientHandler(
 
           if (ShouldSendResponse(suppressResponse, command, value))
           {
-            byte[] message = Encoding.UTF8.GetBytes(response);
-            await stream.WriteAsync(message, cancellationToken);
-            await stream.FlushAsync(cancellationToken);
+            if (!await clientConnectionRegistry.TryWriteAsync(clientId, response, cancellationToken))
+            {
+              shouldTerminateConnection = true;
+              break;
+            }
           }
 
           if (IsFullResyncResponse(response))
@@ -103,14 +108,13 @@ public sealed class ClientHandler(
       if (!suppressResponse)
       {
         string error = CommandHelper.BuildError($"protocol error: {exception.Message}");
-        byte[] message = Encoding.UTF8.GetBytes(error);
-        await stream.WriteAsync(message, serverCancellationToken);
-        await stream.FlushAsync(serverCancellationToken);
+        await clientConnectionRegistry.TryWriteAsync(clientId, error, serverCancellationToken);
       }
     }
     finally
     {
       replicaConnectionRegistry.UnregisterReplica(clientId);
+      clientConnectionRegistry.Unregister(clientId);
       await commandEventLoop.NotifyClientDisconnectedAsync(clientId, serverOptions.Port);
     }
   }

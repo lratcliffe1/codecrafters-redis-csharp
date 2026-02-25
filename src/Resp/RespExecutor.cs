@@ -41,6 +41,7 @@ public sealed class RespExecutor(
   public void OnClientDisconnected(long clientId)
   {
     clientMultiStore.Remove(clientId);
+    pubSubStore.Remove(clientId);
   }
 
   private static bool TryReadCommand(RespValue value, out string command)

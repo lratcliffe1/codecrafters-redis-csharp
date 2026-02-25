@@ -86,6 +86,7 @@ public static class ServiceCollectionExtensions
   {
     services.AddSingleton<IRedisServerHost, RedisServerHost>();
     services.AddSingleton<IClientIdAllocator, ClientIdAllocator>();
+    services.AddSingleton<IClientConnectionRegistry, ClientConnectionRegistry>();
     services.AddSingleton<IHandshakeCoordinator, HandshakeCoordinator>();
     services.AddSingleton<IClientHandler, ClientHandler>();
     services.AddSingleton<IReplicaConnectionRegistry, ReplicaConnectionRegistry>();
