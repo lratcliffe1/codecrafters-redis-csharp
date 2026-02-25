@@ -18,6 +18,7 @@ public interface ICacheStore
   Task<bool> WaitForListEntriesAsync(string key, double expirationSeconds, CancellationToken cancellationToken = default);
   Task<bool> WaitForStreamEntriesAsync(IReadOnlyList<(string key, string id)> streams, double expirationMilliseconds, CancellationToken cancellationToken = default);
   List<string> GetKeys(string pattern);
+  void ZAdd(string key, double score, string member);
 }
 
 public sealed class Cache : ICacheStore
@@ -358,5 +359,17 @@ public sealed class Cache : ICacheStore
       .Where(key => key is string)
       .Where(key => key.ToString()!.StartsWith(pattern))
       .Select(key => key.ToString()!).ToList();
+  }
+
+  public void ZAdd(string key, double score, string member)
+  {
+    EnsureLoopOwner();
+    if (!TryGetValue(key, out CacheValue? cachedValue) || cachedValue == null || !cachedValue.TryGetZSet(out List<ZSetEntry> existingValues))
+    {
+      existingValues = [];
+    }
+
+    existingValues.Add(new ZSetEntry(member, score));
+    _memoryCache.Set(key, existingValues);
   }
 }

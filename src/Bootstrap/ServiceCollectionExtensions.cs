@@ -6,6 +6,7 @@ using codecrafters_redis.src.Commands.Multi;
 using codecrafters_redis.src.Commands.Persistance;
 using codecrafters_redis.src.Commands.PubSub;
 using codecrafters_redis.src.Commands.Replication;
+using codecrafters_redis.src.Commands.SortedLists;
 using codecrafters_redis.src.Commands.Streams;
 using codecrafters_redis.src.Commands.Strings;
 using codecrafters_redis.src.Hosting;
@@ -73,6 +74,8 @@ public static class ServiceCollectionExtensions
     services.AddKeyedSingleton<IRedisCommand, ReplconfCommand>("REPLCONF");
     services.AddKeyedSingleton<IRedisCommand, PsyncCommand>("PSYNC");
     services.AddKeyedSingleton<IRedisCommand, WaitCommand>("WAIT");
+
+    services.AddKeyedSingleton<IRedisCommand, ZAddCommand>("ZADD");
 
     services.AddKeyedSingleton<IRedisCommand, XAddCommand>("XADD");
     services.AddKeyedSingleton<IRedisCommand, XRangeCommand>("XRANGE");
