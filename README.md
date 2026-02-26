@@ -1,5 +1,3 @@
-[![progress-banner](https://backend.codecrafters.io/progress/redis/285ac449-3689-432f-bde0-c6e8fad67b4d)](https://app.codecrafters.io/users/codecrafters-bot?r=2qF)
-
 # C# Redis-Compatible Server
 
 This repository contains my solution to the
