@@ -35,7 +35,7 @@ public class GeoAddCommand(ICacheStore cacheStore) : IRedisCommand
       return CommandHelper.BuildErrorAsync($"ERR invalid longitude, latitude pair {longitudeValue},{latitudeValue} is not a valid geospatial key");
     }
 
-    int added = cacheStore.GeoAdd(key, longitudeValue, latitudeValue, member);
+    int added = cacheStore.ZAdd(key, 0, member);
 
     return CommandHelper.FormatIntegerAsync(added);
   }
