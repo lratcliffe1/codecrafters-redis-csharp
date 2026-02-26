@@ -64,7 +64,7 @@ public sealed class ClientHandler(
 
           TryReadCommandName(value, out string command);
           string response = await commandEventLoop.ExecuteAsync(value, clientId, serverOptions.Port, cancellationToken);
-Console.WriteLine(response);
+
           if (suppressResponse)
           {
             serverOptions.AddAckBytes(consumedLength);

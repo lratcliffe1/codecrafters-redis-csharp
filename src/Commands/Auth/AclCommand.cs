@@ -1,10 +1,11 @@
 namespace codecrafters_redis.src.Commands.Auth;
 
+using codecrafters_redis.src.Cache;
 using codecrafters_redis.src.Commands;
 using codecrafters_redis.src.Resp;
 using codecrafters_redis.src.Helpers;
 
-public class AclCommand : IRedisCommand
+public class AclCommand(IAclUserStore aclUserStore) : IRedisCommand
 {
   public string Name => "ACL";
   public Task<string> ExecuteAsync(List<RespValue> args, CommandExecutionContext context)
@@ -19,7 +20,8 @@ public class AclCommand : IRedisCommand
     return subcommand switch
     {
       "WHOAMI" => WhoAmI(args, context),
-      "GETUSER" => GetUser(args, context),
+      "GETUSER" => GetUser(args),
+      "SETUSER" => SetUser(args),
       _ => CommandHelper.BuildErrorAsync($"invalid subcommand for 'acl': {subcommand}"),
     };
   }
@@ -34,7 +36,7 @@ public class AclCommand : IRedisCommand
     return CommandHelper.FormatBulkAsync("default");
   }
 
-  private static Task<string> GetUser(List<RespValue> args, CommandExecutionContext context)
+  private Task<string> GetUser(List<RespValue> args)
   {
     if (args.Count != 3)
     {
@@ -43,17 +45,49 @@ public class AclCommand : IRedisCommand
 
     string user = args[2].ToString();
 
-    if (user == "default")
+    if (aclUserStore.TryGetUser(user, out AclUser aclUser))
     {
-      var flagsArray = CommandHelper.FormatArrayOfResp([CommandHelper.FormatBulk("nopass")]);
-      var passwordsArray = CommandHelper.FormatArrayOfResp([]);
-      var flags = CommandHelper.FormatArrayOfResp([
+      List<string> flagItems = aclUser.HasNoPassword
+        ? [CommandHelper.FormatBulk("nopass")]
+        : [];
+
+      List<string> passwords = aclUser.Passwords
+        .Select(CommandHelper.FormatBulk)
+        .ToList();
+
+      string flagsArray = CommandHelper.FormatArrayOfResp(flagItems);
+      string passwordsArray = CommandHelper.FormatArrayOfResp(passwords);
+
+      string userInfoArray = CommandHelper.FormatArrayOfResp([
         CommandHelper.FormatBulk("flags"), flagsArray,
         CommandHelper.FormatBulk("passwords"), passwordsArray]);
 
-      return Task.FromResult(flags);
+      return Task.FromResult(userInfoArray);
     }
 
-    return CommandHelper.FormatBulkAsync("");
+    return CommandHelper.FormatNullAsync(RespType.BulkString);
+  }
+
+  private Task<string> SetUser(List<RespValue> args)
+  {
+    if (args.Count < 4)
+    {
+      return CommandHelper.BuildErrorAsync("wrong number of arguments for 'acl setuser'");
+    }
+
+    string user = args[2].ToString();
+
+    for (int i = 3; i < args.Count; i++)
+    {
+      string rule = args[i].ToString();
+
+      if (rule.StartsWith('>'))
+      {
+        string password = rule[1..];
+        aclUserStore.AddPassword(user, password);
+      }
+    }
+
+    return CommandHelper.FormatSimpleAsync("OK");
   }
 }

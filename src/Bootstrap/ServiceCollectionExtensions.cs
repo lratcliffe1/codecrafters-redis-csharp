@@ -47,6 +47,7 @@ public static class ServiceCollectionExtensions
     services.AddSingleton<ICacheStore, Cache.Cache>();
     services.AddSingleton<IClientMultiStore, ClientMultiStore>();
     services.AddSingleton<IPubSubStore, PubSubStore>();
+    services.AddSingleton<IAclUserStore, AclUserStore>();
   }
 
   private static void AddKeyedCommands(IServiceCollection services)
