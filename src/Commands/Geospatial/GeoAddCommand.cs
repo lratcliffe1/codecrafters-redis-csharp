@@ -7,11 +7,6 @@ using codecrafters_redis.src.Helpers;
 
 public class GeoAddCommand(ICacheStore cacheStore) : IRedisCommand
 {
-  private readonly double minLongitude = -180;
-  private readonly double maxLongitude = 180;
-  private readonly double minLatitude = -85.05112878;
-  private readonly double maxLatitude = 85.05112878;
-
   public string Name => "GEOADD";
   public Task<string> ExecuteAsync(List<RespValue> args, CommandExecutionContext context)
   {
@@ -25,14 +20,15 @@ public class GeoAddCommand(ICacheStore cacheStore) : IRedisCommand
     string latitude = args[3].ToString();
     string member = args[4].ToString();
 
-    if (!double.TryParse(longitude, out double longitudeValue) || !double.TryParse(latitude, out double latitudeValue))
+    if (!GeoHelper.TryParseDouble(longitude, out double longitudeValue)
+      || !GeoHelper.TryParseDouble(latitude, out double latitudeValue))
     {
       return CommandHelper.BuildErrorAsync("invalid longitude or latitude for 'geoadd'");
     }
 
-    if (longitudeValue < minLongitude || longitudeValue > maxLongitude || latitudeValue < minLatitude || latitudeValue > maxLatitude)
+    if (!GeoHelper.IsValidCoordinatePair(longitudeValue, latitudeValue))
     {
-      return CommandHelper.BuildErrorAsync($"ERR invalid longitude, latitude pair {longitudeValue},{latitudeValue} is not a valid geospatial key");
+      return CommandHelper.BuildErrorAsync(GeoHelper.BuildInvalidCoordinatePairError(longitudeValue, latitudeValue));
     }
 
     var encodedLatLon = GeohashEncoder.Encode(latitudeValue, longitudeValue);

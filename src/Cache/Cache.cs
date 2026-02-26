@@ -21,10 +21,10 @@ public interface ICacheStore
   int ZAdd(string key, double score, string member);
   int ZRank(string key, string member);
   List<ZSetEntry> ZRange(string key, int start, int stop);
+  List<ZSetEntry> ZSearch(string key, double minScore, double maxScore);
   int ZCard(string key);
   double? ZScore(string key, string member);
   int ZRem(string key, string member);
-  int GeoAdd(string key, double longitude, double latitude, string member);
 }
 
 public sealed class Cache : ICacheStore
@@ -431,6 +431,17 @@ public sealed class Cache : ICacheStore
     return existingValues[startIndex..stopIndex];
   }
 
+  public List<ZSetEntry> ZSearch(string key, double minScore, double maxScore)
+  {
+    EnsureLoopOwner();
+    if (!TryGetValue(key, out CacheValue? cachedValue) || cachedValue == null || !cachedValue.TryGetZSet(out List<ZSetEntry> existingValues))
+    {
+      return [];
+    }
+    
+    return existingValues.Where(entry => entry.Score >= minScore && entry.Score <= maxScore).ToList();
+  }
+
   public int ZCard(string key)
   {
     EnsureLoopOwner();
@@ -502,12 +513,5 @@ public sealed class Cache : ICacheStore
       int nameComparison = x.Member.CompareTo(y.Member);
       return scoreComparison != 0 ? scoreComparison : nameComparison;
     }
-  }
-
-  public int GeoAdd(string key, double longitude, double latitude, string member)
-  {
-    EnsureLoopOwner();
-    
-    return 1;
   }
 }
