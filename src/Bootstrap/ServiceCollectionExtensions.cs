@@ -53,6 +53,7 @@ public static class ServiceCollectionExtensions
   private static void AddKeyedCommands(IServiceCollection services)
   {
     services.AddKeyedSingleton<IRedisCommand, AclCommand>("ACL");
+    services.AddKeyedSingleton<IRedisCommand, AuthCommand>("AUTH");
     
     services.AddKeyedSingleton<IRedisCommand, EchoCommand>("ECHO");
     services.AddKeyedSingleton<IRedisCommand, KeysCommand>("KEYS");

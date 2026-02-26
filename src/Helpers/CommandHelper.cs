@@ -21,6 +21,13 @@ public static class CommandHelper
     return $"-ERR {value}\r\n";
   }
 
+  public static Task<string> BuildNamedErrorAsync(string code, string value) => Task.FromResult(BuildNamedError(code, value));
+
+  public static string BuildNamedError(string code, string value)
+  {
+    return $"-{code} {value}\r\n";
+  }
+
   public static Task<string> FormatIntegerAsync(long value) => Task.FromResult(FormatInteger(value));
 
   public static string FormatInteger(long value)
