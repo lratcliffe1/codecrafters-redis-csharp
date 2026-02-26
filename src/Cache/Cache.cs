@@ -24,6 +24,7 @@ public interface ICacheStore
   int ZCard(string key);
   double? ZScore(string key, string member);
   int ZRem(string key, string member);
+  int GeoAdd(string key, double longitude, double latitude, string member);
 }
 
 public sealed class Cache : ICacheStore
@@ -501,5 +502,12 @@ public sealed class Cache : ICacheStore
       int nameComparison = x.Member.CompareTo(y.Member);
       return scoreComparison != 0 ? scoreComparison : nameComparison;
     }
+  }
+
+  public int GeoAdd(string key, double longitude, double latitude, string member)
+  {
+    EnsureLoopOwner();
+    
+    return 1;
   }
 }

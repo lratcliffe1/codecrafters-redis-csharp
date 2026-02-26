@@ -1,6 +1,7 @@
 using codecrafters_redis.src.Cache;
 using codecrafters_redis.src.Commands;
 using codecrafters_redis.src.Commands.General;
+using codecrafters_redis.src.Commands.Geospatial;
 using codecrafters_redis.src.Commands.Lists;
 using codecrafters_redis.src.Commands.Multi;
 using codecrafters_redis.src.Commands.Persistance;
@@ -53,6 +54,8 @@ public static class ServiceCollectionExtensions
     services.AddKeyedSingleton<IRedisCommand, KeysCommand>("KEYS");
     services.AddKeyedSingleton<IRedisCommand, PingCommand>("PING");
     services.AddKeyedSingleton<IRedisCommand, TypeCommand>("TYPE");
+
+    services.AddKeyedSingleton<IRedisCommand, GeoAddCommand>("GEOADD");
 
     services.AddKeyedSingleton<IRedisCommand, BLPopCommand>("BLPOP");
     services.AddKeyedSingleton<IRedisCommand, LLenCommand>("LLEN");
