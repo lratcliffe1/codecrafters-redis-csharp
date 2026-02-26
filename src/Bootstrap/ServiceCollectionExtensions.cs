@@ -57,6 +57,7 @@ public static class ServiceCollectionExtensions
 
     services.AddKeyedSingleton<IRedisCommand, GeoAddCommand>("GEOADD");
     services.AddKeyedSingleton<IRedisCommand, GeoPosCommand>("GEOPOS");
+    services.AddKeyedSingleton<IRedisCommand, GeoDistCommand>("GEODIST");
 
     services.AddKeyedSingleton<IRedisCommand, BLPopCommand>("BLPOP");
     services.AddKeyedSingleton<IRedisCommand, LLenCommand>("LLEN");
