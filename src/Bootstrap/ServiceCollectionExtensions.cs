@@ -1,5 +1,6 @@
 using codecrafters_redis.src.Cache;
 using codecrafters_redis.src.Commands;
+using codecrafters_redis.src.Commands.Auth;
 using codecrafters_redis.src.Commands.General;
 using codecrafters_redis.src.Commands.Geospatial;
 using codecrafters_redis.src.Commands.Lists;
@@ -50,6 +51,8 @@ public static class ServiceCollectionExtensions
 
   private static void AddKeyedCommands(IServiceCollection services)
   {
+    services.AddKeyedSingleton<IRedisCommand, AclCommand>("ACL");
+    
     services.AddKeyedSingleton<IRedisCommand, EchoCommand>("ECHO");
     services.AddKeyedSingleton<IRedisCommand, KeysCommand>("KEYS");
     services.AddKeyedSingleton<IRedisCommand, PingCommand>("PING");
