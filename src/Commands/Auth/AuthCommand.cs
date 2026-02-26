@@ -5,7 +5,7 @@ using codecrafters_redis.src.Resp;
 using codecrafters_redis.src.Helpers;
 using codecrafters_redis.src.Cache;
 
-public class AuthCommand(IAclUserStore aclUserStore) : IRedisCommand
+public class AuthCommand(IAclUserStore aclUserStore, IClientAuthStore clientAuthStore) : IRedisCommand
 {
   public string Name => "AUTH";
   public Task<string> ExecuteAsync(List<RespValue> args, CommandExecutionContext context)
@@ -23,6 +23,7 @@ public class AuthCommand(IAclUserStore aclUserStore) : IRedisCommand
       return CommandHelper.BuildNamedErrorAsync("WRONGPASS", "invalid username-password pair or user is disabled.");
     }
 
+    clientAuthStore.Authenticate(context.ClientId, user);
     return CommandHelper.FormatSimpleAsync("OK");
   }
 }

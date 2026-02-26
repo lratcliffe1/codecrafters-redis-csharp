@@ -5,7 +5,7 @@ using codecrafters_redis.src.Commands;
 using codecrafters_redis.src.Resp;
 using codecrafters_redis.src.Helpers;
 
-public class AclCommand(IAclUserStore aclUserStore) : IRedisCommand
+public class AclCommand(IAclUserStore aclUserStore, IClientAuthStore clientAuthStore) : IRedisCommand
 {
   public string Name => "ACL";
   public Task<string> ExecuteAsync(List<RespValue> args, CommandExecutionContext context)
@@ -26,14 +26,30 @@ public class AclCommand(IAclUserStore aclUserStore) : IRedisCommand
     };
   }
 
-  private static Task<string> WhoAmI(List<RespValue> args, CommandExecutionContext context)
+  private Task<string> WhoAmI(List<RespValue> args, CommandExecutionContext context)
   {
     if (args.Count != 2)
     {
       return CommandHelper.BuildErrorAsync("wrong number of arguments for 'acl'");
     }
 
-    return CommandHelper.FormatBulkAsync("default");
+    if (!aclUserStore.TryGetUser("default", out AclUser aclUser))
+    {
+      return CommandHelper.BuildErrorAsync($"user 'default' not found");
+    }
+
+    if (aclUser.HasNoPassword)
+    {
+      clientAuthStore.Authenticate(context.ClientId, aclUser.Name);
+      return CommandHelper.FormatBulkAsync(aclUser.Name);
+    }
+
+    if (!clientAuthStore.TryGetUsername(context.ClientId, out string username))
+    {
+      return CommandHelper.BuildNamedErrorAsync("NOAUTH", "Authentication required.");
+    }
+
+    return CommandHelper.FormatBulkAsync(username);
   }
 
   private Task<string> GetUser(List<RespValue> args)

@@ -14,6 +14,8 @@ public interface IRespExecutor
 public sealed class RespExecutor(
   IClientMultiStore clientMultiStore,
   IPubSubStore pubSubStore,
+  IAclUserStore aclUserStore,
+  IClientAuthStore clientAuthStore,
   IServiceProvider serviceProvider,
   [FromKeyedServices("DISCARD")] IRedisCommand discardCommand,
   [FromKeyedServices("MULTI")] IRedisCommand multiCommand) : IRespExecutor
@@ -23,6 +25,11 @@ public sealed class RespExecutor(
     if (!TryReadCommand(value, out string command))
     {
       return CommandHelper.BuildErrorAsync("expected array command");
+    }
+
+    if (RequiresAuthentication(command, clientId))
+    {
+      return CommandHelper.BuildNamedErrorAsync("NOAUTH", "Authentication required.");
     }
 
     if (clientMultiStore.ContainsKey(clientId))
@@ -42,6 +49,23 @@ public sealed class RespExecutor(
   {
     clientMultiStore.Remove(clientId);
     pubSubStore.Remove(clientId);
+    clientAuthStore.Remove(clientId);
+  }
+
+  private bool RequiresAuthentication(string command, long clientId)
+  {
+    if (string.Equals(command, "AUTH", StringComparison.OrdinalIgnoreCase))
+    {
+      return false;
+    }
+
+    if (!aclUserStore.TryGetUser("default", out AclUser defaultUser) || defaultUser.HasNoPassword)
+    {
+      clientAuthStore.Authenticate(clientId, "default");
+      return false;
+    }
+
+    return !clientAuthStore.IsAuthenticated(clientId);
   }
 
   private static bool TryReadCommand(RespValue value, out string command)

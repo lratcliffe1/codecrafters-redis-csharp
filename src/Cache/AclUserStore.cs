@@ -1,5 +1,6 @@
 namespace codecrafters_redis.src.Cache;
 
+using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
 
@@ -18,7 +19,7 @@ public interface IAclUserStore
 public sealed class AclUserStore : IAclUserStore
 {
   private static readonly AclUser EmptyUser = new(string.Empty, []);
-  private readonly Dictionary<string, List<string>> _users = new(StringComparer.Ordinal)
+  private readonly ConcurrentDictionary<string, List<string>> _users = new(StringComparer.Ordinal)
   {
     ["default"] = [],
   };
