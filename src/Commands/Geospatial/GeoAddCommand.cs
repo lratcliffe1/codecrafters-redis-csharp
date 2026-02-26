@@ -7,6 +7,11 @@ using codecrafters_redis.src.Helpers;
 
 public class GeoAddCommand(ICacheStore cacheStore) : IRedisCommand
 {
+  private readonly double minLongitude = -180;
+  private readonly double maxLongitude = 180;
+  private readonly double minLatitude = -85.05112878;
+  private readonly double maxLatitude = 85.05112878;
+
   public string Name => "GEOADD";
   public Task<string> ExecuteAsync(List<RespValue> args, CommandExecutionContext context)
   {
@@ -23,6 +28,11 @@ public class GeoAddCommand(ICacheStore cacheStore) : IRedisCommand
     if (!double.TryParse(longitude, out double longitudeValue) || !double.TryParse(latitude, out double latitudeValue))
     {
       return CommandHelper.BuildErrorAsync("invalid longitude or latitude for 'geoadd'");
+    }
+
+    if (longitudeValue < minLongitude || longitudeValue > maxLongitude || latitudeValue < minLatitude || latitudeValue > maxLatitude)
+    {
+      return CommandHelper.BuildErrorAsync($"ERR invalid longitude, latitude pair {longitudeValue},{latitudeValue} is not a valid geospatial key");
     }
 
     int added = cacheStore.GeoAdd(key, longitudeValue, latitudeValue, member);
