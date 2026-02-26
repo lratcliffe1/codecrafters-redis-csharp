@@ -45,7 +45,7 @@ public class AclCommand : IRedisCommand
 
     if (user == "default")
     {
-      var flagsArray = CommandHelper.FormatArrayOfResp([]);
+      var flagsArray = CommandHelper.FormatArrayOfResp([CommandHelper.FormatBulk("nopass")]);
       var flags = CommandHelper.FormatArrayOfResp([CommandHelper.FormatBulk("flags"), flagsArray]);
 
       return Task.FromResult(flags);
