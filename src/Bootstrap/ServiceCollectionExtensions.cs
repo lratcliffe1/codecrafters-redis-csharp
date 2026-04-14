@@ -78,6 +78,7 @@ public static class ServiceCollectionExtensions
     services.AddKeyedSingleton<IRedisCommand, MultiCommand>("MULTI");
     services.AddKeyedSingleton<IRedisCommand, DiscardCommand>("DISCARD");
     services.AddKeyedSingleton<IRedisCommand, WatchCommand>("WATCH");
+    services.AddKeyedSingleton<IRedisCommand, UnwatchCommand>("UNWATCH");
 
     services.AddKeyedSingleton<IRedisCommand, ConfigCommand>("CONFIG");
 
