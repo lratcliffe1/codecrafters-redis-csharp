@@ -14,8 +14,8 @@ public interface IRespExecutor
 
 public sealed class RespExecutor(
   IClientMultiStore clientMultiStore,
-  IClientWatchStore clientWatchStore,
   ITransactionGuard transactionGuard,
+  ITransactionStateCleaner transactionStateCleaner,
   IPubSubStore pubSubStore,
   IAclUserStore aclUserStore,
   IClientAuthStore clientAuthStore,
@@ -50,8 +50,7 @@ public sealed class RespExecutor(
 
   public void OnClientDisconnected(long clientId)
   {
-    clientMultiStore.Remove(clientId);
-    clientWatchStore.Remove(clientId);
+    transactionStateCleaner.Clear(clientId);
     pubSubStore.Remove(clientId);
     clientAuthStore.Remove(clientId);
   }
@@ -167,8 +166,7 @@ public sealed class RespExecutor(
 
     bool watchedKeyWasModified = transactionGuard.WatchedKeyWasModified(clientId);
 
-    clientMultiStore.Remove(clientId);
-    clientWatchStore.Remove(clientId);
+    transactionStateCleaner.Clear(clientId);
 
     if (watchedKeyWasModified)
     {

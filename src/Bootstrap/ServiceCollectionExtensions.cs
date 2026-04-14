@@ -48,6 +48,7 @@ public static class ServiceCollectionExtensions
     services.AddSingleton<IClientMultiStore, ClientMultiStore>();
     services.AddSingleton<IClientWatchStore, ClientWatchStore>();
     services.AddSingleton<ITransactionGuard, TransactionGuard>();
+    services.AddSingleton<ITransactionStateCleaner, TransactionStateCleaner>();
     services.AddSingleton<IClientAuthStore, ClientAuthStore>();
     services.AddSingleton<IPubSubStore, PubSubStore>();
     services.AddSingleton<IAclUserStore, AclUserStore>();
