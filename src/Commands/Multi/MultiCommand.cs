@@ -20,9 +20,4 @@ public class MultiCommand(IClientMultiStore clientMultiStore) : IRedisCommand
 
     return CommandHelper.FormatSimpleAsync(command == Name ? "OK" : "QUEUED");
   }
-
-  public Task<string> ExecuteAsync(List<RespValue> args, CommandExecutionContext context, RespValue RespValue)
-  {
-    throw new NotImplementedException();
-  }
 }

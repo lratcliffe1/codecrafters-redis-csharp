@@ -1,5 +1,6 @@
 using codecrafters_redis.src.Commands;
 using codecrafters_redis.src.Cache;
+using codecrafters_redis.src.Commands.Multi;
 using codecrafters_redis.src.Helpers;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -12,9 +13,9 @@ public interface IRespExecutor
 }
 
 public sealed class RespExecutor(
-  ICacheStore cacheStore,
   IClientMultiStore clientMultiStore,
   IClientWatchStore clientWatchStore,
+  ITransactionGuard transactionGuard,
   IPubSubStore pubSubStore,
   IAclUserStore aclUserStore,
   IClientAuthStore clientAuthStore,
@@ -164,7 +165,7 @@ public sealed class RespExecutor(
       return CommandHelper.BuildError("EXEC without MULTI");
     }
 
-    bool watchedKeyWasModified = WasWatchedKeyModified(clientId);
+    bool watchedKeyWasModified = transactionGuard.WatchedKeyWasModified(clientId);
 
     clientMultiStore.Remove(clientId);
     clientWatchStore.Remove(clientId);
@@ -182,23 +183,5 @@ public sealed class RespExecutor(
     }
 
     return CommandHelper.FormatArrayOfResp(results);
-  }
-
-  private bool WasWatchedKeyModified(long clientId)
-  {
-    if (!clientWatchStore.TryGetValue(clientId, out Dictionary<string, long>? watchedKeyVersions) || watchedKeyVersions == null)
-    {
-      return false;
-    }
-
-    foreach ((string key, long watchedVersion) in watchedKeyVersions)
-    {
-      if (cacheStore.GetMutationVersion(key) != watchedVersion)
-      {
-        return true;
-      }
-    }
-
-    return false;
   }
 }

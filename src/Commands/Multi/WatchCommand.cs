@@ -21,7 +21,7 @@ public class WatchCommand(IClientWatchStore clientWatchStore, ICacheStore cacheS
       .Distinct(StringComparer.Ordinal)
       .ToDictionary(key => key, cacheStore.GetMutationVersion, StringComparer.Ordinal);
 
-    clientWatchStore.AddOrUpdate(context.ClientId, keyVersions);
+    clientWatchStore.WatchKeys(context.ClientId, keyVersions);
 
     return CommandHelper.FormatSimpleAsync("OK");
   }

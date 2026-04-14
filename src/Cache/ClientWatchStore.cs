@@ -4,7 +4,7 @@ namespace codecrafters_redis.src.Cache;
 
 public interface IClientWatchStore
 {
-  void AddOrUpdate(long clientId, IReadOnlyDictionary<string, long> versionsByKey);
+  void WatchKeys(long clientId, IReadOnlyDictionary<string, long> versionsByKey);
   bool TryGetValue(long clientId, out Dictionary<string, long>? versionsByKey);
   void Remove(long clientId);
 }
@@ -13,7 +13,7 @@ public sealed class ClientWatchStore : IClientWatchStore
 {
   private readonly ConcurrentDictionary<long, Dictionary<string, long>> _cache = [];
 
-  public void AddOrUpdate(long clientId, IReadOnlyDictionary<string, long> versionsByKey)
+  public void WatchKeys(long clientId, IReadOnlyDictionary<string, long> versionsByKey)
   {
     if (_cache.TryGetValue(clientId, out Dictionary<string, long>? watchedKeys))
     {
