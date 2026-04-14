@@ -25,7 +25,7 @@ public interface ICacheStore
   int ZCard(string key);
   double? ZScore(string key, string member);
   int ZRem(string key, string member);
-  long GetMutationVersion(string key);
+  long GetKeyVersion(string key);
 }
 
 public sealed class Cache : ICacheStore
@@ -498,7 +498,7 @@ public sealed class Cache : ICacheStore
     return 1;
   }
 
-  public long GetMutationVersion(string key)
+  public long GetKeyVersion(string key)
   {
     EnsureLoopOwner();
     return _mutationVersionsByKey.GetValueOrDefault(key);

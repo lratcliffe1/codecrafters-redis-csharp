@@ -19,7 +19,7 @@ public class WatchCommand(IClientWatchStore clientWatchStore, ICacheStore cacheS
       .Skip(1)
       .Select(arg => arg.ToString())
       .Distinct(StringComparer.Ordinal)
-      .ToDictionary(key => key, cacheStore.GetMutationVersion, StringComparer.Ordinal);
+      .ToDictionary(key => key, cacheStore.GetKeyVersion, StringComparer.Ordinal);
 
     clientWatchStore.WatchKeys(context.ClientId, keyVersions);
 

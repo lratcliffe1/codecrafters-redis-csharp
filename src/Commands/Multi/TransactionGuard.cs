@@ -18,7 +18,7 @@ public sealed class TransactionGuard(IClientWatchStore clientWatchStore, ICacheS
 
     foreach ((string key, long watchedVersion) in watchedKeyVersions)
     {
-      if (cacheStore.GetMutationVersion(key) != watchedVersion)
+      if (cacheStore.GetKeyVersion(key) != watchedVersion)
       {
         return true;
       }
