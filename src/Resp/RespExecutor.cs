@@ -13,6 +13,7 @@ public interface IRespExecutor
 
 public sealed class RespExecutor(
   IClientMultiStore clientMultiStore,
+  IClientWatchStore clientWatchStore,
   IPubSubStore pubSubStore,
   IAclUserStore aclUserStore,
   IClientAuthStore clientAuthStore,
@@ -48,6 +49,7 @@ public sealed class RespExecutor(
   public void OnClientDisconnected(long clientId)
   {
     clientMultiStore.Remove(clientId);
+    clientWatchStore.Remove(clientId);
     pubSubStore.Remove(clientId);
     clientAuthStore.Remove(clientId);
   }
@@ -95,6 +97,7 @@ public sealed class RespExecutor(
       "EXEC" => ExecCommandAsync(clientId, port, cancellationToken),
       "MULTI" => CommandHelper.BuildErrorAsync("MULTI calls can not be nested"),
       "DISCARD" => discardCommand.ExecuteAsync(originalValue.ArrayValue ?? [], context),
+      "WATCH" => CommandHelper.BuildErrorAsync("WATCH inside MULTI is not allowed"),
       _ => multiCommand.ExecuteAsync(originalValue.ArrayValue ?? [], context),
     };
   }
