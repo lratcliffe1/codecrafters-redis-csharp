@@ -11,6 +11,11 @@ public class MultiCommand(IClientMultiStore clientMultiStore) : IRedisCommand
   {
     var command = args[0].ToString();
 
+    if (command == Name && args.Count != 1)
+    {
+      return CommandHelper.BuildErrorAsync("wrong number of arguments for 'multi'");
+    }
+
     clientMultiStore.Set(context.ClientId, command == Name ? null : context.RespValue);
 
     return CommandHelper.FormatSimpleAsync(command == Name ? "OK" : "QUEUED");

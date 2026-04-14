@@ -4,7 +4,7 @@ using codecrafters_redis.src.Resp;
 
 namespace codecrafters_redis.src.Commands.Multi;
 
-public class WatchCommand(IClientWatchStore clientWatchStore) : IRedisCommand
+public class WatchCommand(IClientWatchStore clientWatchStore, ICacheStore cacheStore) : IRedisCommand
 {
   public string Name => "WATCH";
 
@@ -15,12 +15,13 @@ public class WatchCommand(IClientWatchStore clientWatchStore) : IRedisCommand
       return CommandHelper.BuildErrorAsync("wrong number of arguments for 'watch'");
     }
 
-    List<string> keys = args
+    Dictionary<string, long> keyVersions = args
       .Skip(1)
       .Select(arg => arg.ToString())
-      .ToList();
+      .Distinct(StringComparer.Ordinal)
+      .ToDictionary(key => key, cacheStore.GetMutationVersion, StringComparer.Ordinal);
 
-    clientWatchStore.Add(context.ClientId, keys);
+    clientWatchStore.AddOrUpdate(context.ClientId, keyVersions);
 
     return CommandHelper.FormatSimpleAsync("OK");
   }

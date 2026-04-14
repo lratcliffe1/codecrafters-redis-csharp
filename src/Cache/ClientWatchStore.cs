@@ -4,33 +4,33 @@ namespace codecrafters_redis.src.Cache;
 
 public interface IClientWatchStore
 {
-  void Add(long clientId, IEnumerable<string> keys);
-  bool TryGetValue(long clientId, out HashSet<string>? keys);
+  void AddOrUpdate(long clientId, IReadOnlyDictionary<string, long> versionsByKey);
+  bool TryGetValue(long clientId, out Dictionary<string, long>? versionsByKey);
   void Remove(long clientId);
 }
 
 public sealed class ClientWatchStore : IClientWatchStore
 {
-  private readonly ConcurrentDictionary<long, HashSet<string>> _cache = [];
+  private readonly ConcurrentDictionary<long, Dictionary<string, long>> _cache = [];
 
-  public void Add(long clientId, IEnumerable<string> keys)
+  public void AddOrUpdate(long clientId, IReadOnlyDictionary<string, long> versionsByKey)
   {
-    if (_cache.TryGetValue(clientId, out HashSet<string>? watchedKeys))
+    if (_cache.TryGetValue(clientId, out Dictionary<string, long>? watchedKeys))
     {
-      foreach (string key in keys)
+      foreach (KeyValuePair<string, long> entry in versionsByKey)
       {
-        watchedKeys.Add(key);
+        watchedKeys[entry.Key] = entry.Value;
       }
 
       return;
     }
 
-    _cache[clientId] = keys.ToHashSet(StringComparer.Ordinal);
+    _cache[clientId] = new Dictionary<string, long>(versionsByKey, StringComparer.Ordinal);
   }
 
-  public bool TryGetValue(long clientId, out HashSet<string>? keys)
+  public bool TryGetValue(long clientId, out Dictionary<string, long>? versionsByKey)
   {
-    return _cache.TryGetValue(clientId, out keys);
+    return _cache.TryGetValue(clientId, out versionsByKey);
   }
 
   public void Remove(long clientId)

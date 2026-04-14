@@ -25,11 +25,13 @@ public interface ICacheStore
   int ZCard(string key);
   double? ZScore(string key, string member);
   int ZRem(string key, string member);
+  long GetMutationVersion(string key);
 }
 
 public sealed class Cache : ICacheStore
 {
   private readonly MemoryCache _memoryCache = new(new MemoryCacheOptions());
+  private readonly Dictionary<string, long> _mutationVersionsByKey = new(StringComparer.Ordinal);
 
   private readonly Dictionary<string, List<ListWaiter>> _listWaitersByKey = [];
   private readonly Dictionary<string, List<StreamWaiter>> _streamWaitersByKey = [];
@@ -38,6 +40,7 @@ public sealed class Cache : ICacheStore
   {
     EnsureLoopOwner();
     _memoryCache.Set(key, value);
+    MarkMutated(key);
     HandlePostSetEffects(key, value);
   }
 
@@ -45,6 +48,7 @@ public sealed class Cache : ICacheStore
   {
     EnsureLoopOwner();
     _memoryCache.Set(key, value, TimeSpan.FromMilliseconds(expirationMilliseconds));
+    MarkMutated(key);
     HandlePostSetEffects(key, value);
   }
 
@@ -54,11 +58,13 @@ public sealed class Cache : ICacheStore
     if (TryGetListValue(key, out List<string> existingValues))
     {
       existingValues.AddRange(values);
+      MarkMutated(key);
 
       UpdateBlockingEvents(key);
       return existingValues.Count;
     }
     _memoryCache.Set(key, CacheValue.List(values));
+    MarkMutated(key);
 
     UpdateBlockingEvents(key);
     return values.Count;
@@ -72,12 +78,14 @@ public sealed class Cache : ICacheStore
     if (TryGetListValue(key, out List<string> existingValues))
     {
       existingValues.InsertRange(0, values);
+      MarkMutated(key);
 
       UpdateBlockingEvents(key);
       return existingValues.Count;
     }
 
     _memoryCache.Set(key, CacheValue.List(values));
+    MarkMutated(key);
 
     UpdateBlockingEvents(key);
     return values.Count;
@@ -145,6 +153,7 @@ public sealed class Cache : ICacheStore
         int countToPop = Math.Min(popCount, existingValues.Count);
         List<string> value = existingValues[0..countToPop];
         existingValues.RemoveRange(0, countToPop);
+        MarkMutated(key);
         return value;
       }
     }
@@ -379,12 +388,14 @@ public sealed class Cache : ICacheStore
     {
       existingValues = existingValues.Select(entry => entry.Member == member ? new ZSetEntry(entry.Member, score) : entry).ToList();
       _memoryCache.Set(key, CacheValue.ZSet(existingValues));
+      MarkMutated(key);
 
       return 0;
     }
 
     InsertZSetEntry(existingValues, score, member);
     _memoryCache.Set(key, CacheValue.ZSet(existingValues));
+    MarkMutated(key);
 
     return 1;
   }
@@ -438,7 +449,7 @@ public sealed class Cache : ICacheStore
     {
       return [];
     }
-    
+
     return existingValues.Where(entry => entry.Score >= minScore && entry.Score <= maxScore).ToList();
   }
 
@@ -451,7 +462,7 @@ public sealed class Cache : ICacheStore
     }
     return existingValues.Count;
   }
-  
+
   public double? ZScore(string key, string member)
   {
     EnsureLoopOwner();
@@ -480,15 +491,28 @@ public sealed class Cache : ICacheStore
     {
       return 0;
     }
-    
+
     existingValues.RemoveAt(index);
     _memoryCache.Set(key, CacheValue.ZSet(existingValues));
+    MarkMutated(key);
     return 1;
+  }
+
+  public long GetMutationVersion(string key)
+  {
+    EnsureLoopOwner();
+    return _mutationVersionsByKey.GetValueOrDefault(key);
   }
 
   private static bool ZSetContainsMember(List<ZSetEntry> existingValues, string member)
   {
     return existingValues.Any(entry => entry.Member == member);
+  }
+
+  private void MarkMutated(string key)
+  {
+    EnsureLoopOwner();
+    _mutationVersionsByKey[key] = _mutationVersionsByKey.GetValueOrDefault(key) + 1;
   }
 
   private static void InsertZSetEntry(List<ZSetEntry> existingValues, double score, string member)

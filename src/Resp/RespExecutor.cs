@@ -12,6 +12,7 @@ public interface IRespExecutor
 }
 
 public sealed class RespExecutor(
+  ICacheStore cacheStore,
   IClientMultiStore clientMultiStore,
   IClientWatchStore clientWatchStore,
   IPubSubStore pubSubStore,
@@ -163,7 +164,15 @@ public sealed class RespExecutor(
       return CommandHelper.BuildError("EXEC without MULTI");
     }
 
+    bool watchedKeyWasModified = WasWatchedKeyModified(clientId);
+
     clientMultiStore.Remove(clientId);
+    clientWatchStore.Remove(clientId);
+
+    if (watchedKeyWasModified)
+    {
+      return CommandHelper.FormatNull(RespType.Array);
+    }
 
     List<string> results = [];
     foreach (RespValue command in commands)
@@ -173,5 +182,23 @@ public sealed class RespExecutor(
     }
 
     return CommandHelper.FormatArrayOfResp(results);
+  }
+
+  private bool WasWatchedKeyModified(long clientId)
+  {
+    if (!clientWatchStore.TryGetValue(clientId, out Dictionary<string, long>? watchedKeyVersions) || watchedKeyVersions == null)
+    {
+      return false;
+    }
+
+    foreach ((string key, long watchedVersion) in watchedKeyVersions)
+    {
+      if (cacheStore.GetMutationVersion(key) != watchedVersion)
+      {
+        return true;
+      }
+    }
+
+    return false;
   }
 }
